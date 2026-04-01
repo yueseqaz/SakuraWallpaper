@@ -1,0 +1,64 @@
+// App
+"app.name" = "SakuraWallpaper";
+
+// Errors
+"error.fileNotFound" = "File Not Found";
+"error.fileNotFound.message" = "The selected file does not exist. Please choose another file.";
+"error.unsupportedFormat" = "Unsupported Format";
+"error.unsupportedFormat.message" = "This file format is not supported. Please select MP4, MOV, GIF, PNG, JPG, HEIC, or WebP.";
+"error.playbackFailed" = "Playback Failed";
+"error.playbackFailed.message" = "Unable to play this file. The file may be corrupted.";
+"error.permissionDenied" = "Permission Denied";
+"error.permissionDenied.message" = "Cannot access this file. Please check file permissions.";
+"error.screenNotFound" = "Screen Not Found";
+"error.screenNotFound.message" = "The selected screen is no longer available.";
+
+// UI
+"ui.chooseWallpaper" = "Choose Wallpaper";
+"ui.stopWallpaper" = "Stop Wallpaper";
+"ui.noWallpaper" = "No wallpaper selected";
+"ui.active" = "Active";
+"ui.inactive" = "Inactive";
+"ui.launchAtLogin" = "Launch at Login";
+"ui.applyToAll" = "Apply to All";
+"ui.screen" = "Screen";
+"ui.video" = "Video";
+"ui.image" = "Image";
+"ui.dropHere" = "Click \"Choose Wallpaper\" to get started";
+"ui.formats" = "MP4, MOV, GIF, PNG, JPG, HEIC, WebP";
+"ui.madeBy" = "Made with %@ by sakura";
+
+// Menu
+"menu.open" = "Open SakuraWallpaper";
+"menu.pause" = "Pause Wallpaper";
+"menu.resume" = "Resume Wallpaper";
+"menu.pauseAll" = "Pause All";
+"menu.pauseScreen" = "Pause Screen";
+"menu.recent" = "Recent Wallpapers";
+"menu.clearHistory" = "Clear History";
+"menu.about" = "About";
+"menu.quit" = "Quit";
+"menu.empty" = "(Empty)";
+
+// Alert
+"alert.ok" = "OK";
+"alert.cancel" = "Cancel";
+
+// Language
+"language.system" = "System";
+"language.en" = "English";
+"language.zh-Hans" = "简体中文";
+"menu.language" = "Language";
+"language.restartHint" = "Please restart the app to apply language change.";
+
+// Screen
+"screen.display" = "Display %d";
+"screen.builtIn" = " (Built-in)";
+
+// About
+"about.title" = "About SakuraWallpaper";
+"about.version" = "Version %@";
+"about.description" = "A lightweight video & image\nwallpaper app for macOS";
+"about.formatsTitle" = "Supported Formats";
+"about.featuresTitle" = "Features";
+"about.features" = "Video & Image Wallpaper\nMulti-Display Support\nRecent Wallpapers\nLaunch at Login";

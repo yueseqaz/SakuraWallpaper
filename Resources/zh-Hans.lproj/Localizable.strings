@@ -1,0 +1,64 @@
+// App
+"app.name" = "樱花壁纸";
+
+// Errors
+"error.fileNotFound" = "文件不存在";
+"error.fileNotFound.message" = "所选文件不存在，请选择其他文件。";
+"error.unsupportedFormat" = "格式不支持";
+"error.unsupportedFormat.message" = "不支持此文件格式，请选择 MP4、MOV、GIF、PNG、JPG、HEIC 或 WebP 文件。";
+"error.playbackFailed" = "播放失败";
+"error.playbackFailed.message" = "无法播放此文件，文件可能已损坏。";
+"error.permissionDenied" = "权限不足";
+"error.permissionDenied.message" = "无法访问此文件，请检查文件权限。";
+"error.screenNotFound" = "屏幕未找到";
+"error.screenNotFound.message" = "所选屏幕不可用。";
+
+// UI
+"ui.chooseWallpaper" = "选择壁纸";
+"ui.stopWallpaper" = "停止壁纸";
+"ui.noWallpaper" = "未选择壁纸";
+"ui.active" = "运行中";
+"ui.inactive" = "未激活";
+"ui.launchAtLogin" = "开机自启动";
+"ui.applyToAll" = "应用到全部";
+"ui.screen" = "屏幕";
+"ui.video" = "视频";
+"ui.image" = "图片";
+"ui.dropHere" = "点击「选择壁纸」开始使用";
+"ui.formats" = "支持 MP4、MOV、GIF、PNG、JPG、HEIC、WebP";
+"ui.madeBy" = "由 sakura 用 %@ 制作";
+
+// Menu
+"menu.open" = "打开樱花壁纸";
+"menu.pause" = "暂停壁纸";
+"menu.resume" = "恢复壁纸";
+"menu.pauseAll" = "全部暂停";
+"menu.pauseScreen" = "暂停屏幕";
+"menu.recent" = "最近使用";
+"menu.clearHistory" = "清除历史";
+"menu.about" = "关于";
+"menu.quit" = "退出";
+"menu.empty" = "（空）";
+
+// Alert
+"alert.ok" = "好";
+"alert.cancel" = "取消";
+
+// Language
+"language.system" = "跟随系统";
+"language.en" = "English";
+"language.zh-Hans" = "简体中文";
+"menu.language" = "语言";
+"language.restartHint" = "请重启应用以切换语言。";
+
+// Screen
+"screen.display" = "显示器 %d";
+"screen.builtIn" = " (内置)";
+
+// About
+"about.title" = "关于樱花壁纸";
+"about.version" = "版本 %@";
+"about.description" = "macOS 轻量级视频和图片\n壁纸应用";
+"about.formatsTitle" = "支持格式";
+"about.featuresTitle" = "功能特性";
+"about.features" = "视频和图片壁纸\n多显示器支持\n最近使用壁纸\n开机自启动";
