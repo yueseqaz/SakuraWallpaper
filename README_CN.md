@@ -14,6 +14,12 @@ macOS 轻量级视频和图片壁纸应用。
 - 暂停和恢复壁纸播放
 - 中英文双语界面
 
+## 截图
+
+![主窗口](img/Sakurawallpaper1.jpeg)
+
+![状态栏菜单](img/Sakurawallpaper2.jpeg)
+
 ## 支持格式
 
 **视频**

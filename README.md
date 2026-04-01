@@ -14,6 +14,12 @@ A lightweight video and image wallpaper application for macOS.
 - Pause and resume wallpaper playback
 - Bilingual interface (English / Chinese)
 
+## Screenshots
+
+![Main Window](img/Sakurawallpaper1.jpeg)
+
+![Status Bar Menu](img/Sakurawallpaper2.jpeg)
+
 ## Supported Formats
 
 **Video**
