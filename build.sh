@@ -63,20 +63,13 @@ if [ "$1" = "dmg" ]; then
     DMG_TMP="dmg_tmp"
     rm -rf "$DMG_TMP" "$APP_NAME.dmg"
 
-    # 生成背景图（箭头 + 提示文字）
-    python3 << PYEOF
-from PIL import Image, ImageDraw, ImageFont
-img = Image.new("RGBA", (500, 320), (240, 240, 240, 255))
-draw = ImageDraw.Draw(img)
-draw.line([(200, 160), (300, 160)], fill=(120, 120, 120), width=3)
-draw.polygon([(300, 150), (315, 160), (300, 170)], fill=(120, 120, 120))
-try:
-    font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 16)
-except:
-    font = ImageFont.load_default()
-draw.text((170, 180), "拖拽到此处安装", fill=(140, 140, 140), font=font)
-img.save("bg.png")
-PYEOF
+    # 压缩背景图
+    python3 -c "
+from PIL import Image
+img = Image.open('bg.jpg')
+img = img.resize((500, 320), Image.LANCZOS)
+img.save('bg.png', optimize=True)
+"
 
     # 准备内容
     mkdir -p "$DMG_TMP"
