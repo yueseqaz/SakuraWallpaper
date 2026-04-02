@@ -20,6 +20,7 @@ A lightweight video and image wallpaper application for macOS.
 ![Main Window](img/Sakurawallpaper1.jpeg)
 
 ![Status Bar Menu](img/Sakurawallpaper2.jpeg)
+![SakuraWallpaper Demo](img/video.gif)
 
 ## Supported Formats
 
