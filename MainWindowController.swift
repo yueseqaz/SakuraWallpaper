@@ -312,8 +312,8 @@ class MainWindowController: NSWindowController {
             wallpaperManager.setWallpaper(url: url, for: screen)
         } else {
             wallpaperManager.setWallpaper(url: url)
+            SettingsManager.shared.wallpaperPath = url.path
         }
-        SettingsManager.shared.wallpaperPath = url.path
         updateUI()
         (NSApp.delegate as? AppDelegate)?.rebuildRecentMenu()
     }

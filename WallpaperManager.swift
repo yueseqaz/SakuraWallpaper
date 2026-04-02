@@ -71,7 +71,15 @@ class WallpaperManager {
         if let path = SettingsManager.shared.wallpaperPath(for: screen) {
             return URL(fileURLWithPath: path)
         }
-        return SettingsManager.shared.wallpaperURL
+        if let url = SettingsManager.shared.wallpaperURL {
+            return url
+        }
+        for (_, fileURL) in currentFiles {
+            if FileManager.default.fileExists(atPath: fileURL.path) {
+                return fileURL
+            }
+        }
+        return nil
     }
 
     @objc private func appBecameActive() {
