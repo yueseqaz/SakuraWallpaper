@@ -64,7 +64,6 @@ if [ "$1" = "dmg" ]; then
     rm -rf "$DMG_TMP" "$APP_NAME.dmg"
     mkdir -p "$DMG_TMP"
     cp -R "$APP_DIR" "$DMG_TMP/"
-    ln -s /Applications "$DMG_TMP/Applications"
     cp AppIcon.icns "$DMG_TMP/.VolumeIcon.icns"
 
     # 卸载可能残留的同名卷
@@ -74,10 +73,29 @@ if [ "$1" = "dmg" ]; then
     # 创建可写 DMG
     hdiutil create -volname "$APP_NAME" -srcfolder "$DMG_TMP" -ov -format UDRW -fs HFS+ "${APP_NAME}_rw.dmg" > /dev/null 2>&1
 
-    # 挂载并设置卷图标
+    # 挂载并设置卷图标 + 创建 Applications 别名（带图标）
     MOUNT_POINT=$(hdiutil attach "${APP_NAME}_rw.dmg" -nobrowse -noverify 2>&1 | grep -o '/Volumes/.*')
     SetFile -a C "$MOUNT_POINT"
     SetFile -c icnC "$MOUNT_POINT/.VolumeIcon.icns"
+    osascript -e "
+        tell application \"Finder\"
+            tell disk \"$APP_NAME\"
+                open
+                set current view of container window to icon view
+                set toolbar visible of container window to false
+                set statusbar visible of container window to false
+                set the bounds of container window to {100, 100, 600, 420}
+                set position of item \"$APP_NAME.app\" of container window to {120, 160}
+                make new alias file at container window to POSIX file \"/Applications\" with properties {name:\"Applications\"}
+                set position of item \"Applications\" of container window to {360, 160}
+                close
+                open
+                update without registering applications
+                delay 1
+                close
+            end tell
+        end tell
+    " 2>/dev/null
     hdiutil detach "$MOUNT_POINT" > /dev/null 2>&1
 
     # 转换为压缩只读 DMG
