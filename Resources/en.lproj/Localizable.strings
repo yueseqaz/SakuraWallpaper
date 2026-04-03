@@ -20,6 +20,7 @@
 "ui.active" = "Active";
 "ui.inactive" = "Inactive";
 "ui.launchAtLogin" = "Launch at Login";
+"ui.pauseWhenInvisible" = "Pause when inactive";
 "ui.applyToAll" = "Apply to All";
 "ui.screen" = "Screen";
 "ui.video" = "Video";

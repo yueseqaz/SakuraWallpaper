@@ -8,6 +8,7 @@ class SettingsManager {
     private let defaults = UserDefaults.standard
     private let wallpaperKey = "sakurawallpaper_wallpaper_path"
     private let launchKey    = "sakurawallpaper_launch_at_login"
+    private let pauseWhenInvisibleKey = "sakurawallpaper_pause_when_invisible"
     private let historyKey   = "sakurawallpaper_history"
     private let screenWallpapersKey = "sakurawallpaper_screen_wallpapers"
     private let languageKey = "sakurawallpaper_language"
@@ -26,6 +27,11 @@ class SettingsManager {
             defaults.set(newValue, forKey: launchKey)
             updateLoginItem(enabled: newValue)
         }
+    }
+
+    var pauseWhenInvisible: Bool {
+        get { defaults.bool(forKey: pauseWhenInvisibleKey) }
+        set { defaults.set(newValue, forKey: pauseWhenInvisibleKey) }
     }
 
     var wallpaperHistory: [String] {
