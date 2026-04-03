@@ -18,6 +18,7 @@ swiftc -o "$APP_DIR/Contents/MacOS/$APP_NAME" \
     ScreenPlayer.swift \
     WallpaperManager.swift \
     MainWindowController.swift \
+    ThumbnailItem.swift \
     AboutWindowController.swift \
     AppDelegate.swift \
     main.swift \

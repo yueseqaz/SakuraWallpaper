@@ -16,7 +16,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         mainWindow = MainWindowController(wallpaperManager: wallpaperManager)
         setupStatusBar()
 
-        if SettingsManager.shared.hasScreenWallpapers {
+        if SettingsManager.shared.isFolderMode,
+           let folderPath = SettingsManager.shared.folderPath,
+           FileManager.default.fileExists(atPath: folderPath) {
+            let url = URL(fileURLWithPath: folderPath)
+            wallpaperManager.setFolder(url: url)
+        } else if SettingsManager.shared.hasScreenWallpapers {
             for screen in NSScreen.screens {
                 if let url = SettingsManager.shared.wallpaperURL(for: screen),
                    FileManager.default.fileExists(atPath: url.path) {
@@ -144,6 +149,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let url = URL(fileURLWithPath: path)
         wallpaperManager.setWallpaper(url: url)
         SettingsManager.shared.wallpaperPath = path
+        SettingsManager.shared.isFolderMode = false
         mainWindow.updateUI()
         rebuildRecentMenu()
     }
@@ -225,6 +231,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func stopWallpaper() {
         wallpaperManager.stopAll()
         SettingsManager.shared.wallpaperPath = nil
+        SettingsManager.shared.isFolderMode = false
+        SettingsManager.shared.folderPath = nil
         mainWindow.updateUI()
         rebuildRecentMenu()
     }

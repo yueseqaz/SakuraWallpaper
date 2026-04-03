@@ -3,7 +3,7 @@ import AVFoundation
 import AVKit
 import CoreGraphics
 
-class MainWindowController: NSWindowController {
+class MainWindowController: NSWindowController, NSCollectionViewDataSource {
     let wallpaperManager: WallpaperManager
 
     private var previewImageView: NSImageView!
@@ -22,6 +22,8 @@ class MainWindowController: NSWindowController {
     private var intervalField: NSTextField!
     private var intervalStepper: NSStepper!
     private var intervalLabel: NSTextField!
+    private var collectionView: NSCollectionView!
+    private var scrollView: NSScrollView!
     private var dropZone: NSView!
     private var dropLabel: NSTextField!
     private var screenPopUp: NSPopUpButton!
@@ -200,6 +202,26 @@ class MainWindowController: NSWindowController {
         previewPlayerLayer.videoGravity = .resizeAspectFill
         previewPlayerLayer.frame = previewContainer.bounds
         previewContainer.layer?.addSublayer(previewPlayerLayer)
+
+        let layout = NSCollectionViewFlowLayout()
+        layout.itemSize = NSSize(width: 80, height: 80)
+        layout.sectionInset = NSEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
+        layout.minimumInteritemSpacing = 10
+        layout.minimumLineSpacing = 10
+        layout.scrollDirection = .horizontal
+
+        collectionView = NSCollectionView()
+        collectionView.collectionViewLayout = layout
+        collectionView.isSelectable = true
+        collectionView.register(ThumbnailItem.self, forItemWithIdentifier: ThumbnailItem.identifier)
+        collectionView.dataSource = self
+
+        scrollView = NSScrollView(frame: previewContainer.bounds)
+        scrollView.documentView = collectionView
+        scrollView.hasHorizontalScroller = true
+        scrollView.hasVerticalScroller = false
+        scrollView.isHidden = true
+        previewContainer.addSubview(scrollView)
 
         return previewContainer
     }
@@ -383,6 +405,8 @@ class MainWindowController: NSWindowController {
         } else {
             wallpaperManager.stopAll()
             SettingsManager.shared.wallpaperPath = nil
+            SettingsManager.shared.isFolderMode = false
+            SettingsManager.shared.folderPath = nil
         }
         updateUI()
         (NSApp.delegate as? AppDelegate)?.rebuildRecentMenu()
@@ -481,6 +505,16 @@ class MainWindowController: NSWindowController {
     private func showPreview(url: URL, type: MediaType) {
         dropZone.isHidden = true
 
+        if SettingsManager.shared.isFolderMode {
+            scrollView.isHidden = false
+            previewImageView.isHidden = true
+            previewPlayerLayer.isHidden = true
+            collectionView.reloadData()
+            return
+        }
+        
+        scrollView.isHidden = true
+
         switch type {
         case .image:
             if let image = NSImage(contentsOf: url) {
@@ -518,6 +552,17 @@ class MainWindowController: NSWindowController {
         previewPlayer = nil
         previewPlayerLayer.player = nil
         previewImageView.image = nil
+        scrollView.isHidden = true
+    }
+    func collectionView(_ collectionView: NSCollectionView, numberOfItemsInSection section: Int) -> Int {
+        return wallpaperManager.playlist.count
+    }
+
+    func collectionView(_ collectionView: NSCollectionView, itemForRepresentedObjectAt indexPath: IndexPath) -> NSCollectionViewItem {
+        let item = collectionView.makeItem(withIdentifier: ThumbnailItem.identifier, for: indexPath) as! ThumbnailItem
+        let url = wallpaperManager.playlist[indexPath.item]
+        item.configure(with: url)
+        return item
     }
 }
 
