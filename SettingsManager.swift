@@ -33,7 +33,10 @@ class SettingsManager {
 
     var folderPath: String? {
         get { defaults.string(forKey: folderPathKey) }
-        set { defaults.set(newValue, forKey: folderPathKey) }
+        set {
+            defaults.set(newValue, forKey: folderPathKey)
+            if let p = newValue { addToHistory(p) }
+        }
     }
 
     var rotationIntervalMinutes: Int {

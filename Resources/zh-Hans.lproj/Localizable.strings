@@ -43,6 +43,7 @@
 "menu.pause" = "暂停壁纸";
 "menu.resume" = "恢复壁纸";
 "menu.pauseAll" = "全部暂停";
+"menu.nextWallpaper" = "下一张壁纸";
 "menu.pauseScreen" = "暂停屏幕";
 "menu.recent" = "最近使用";
 "menu.clearHistory" = "清除历史";

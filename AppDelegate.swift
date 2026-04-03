@@ -54,6 +54,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         pauseItem.target = self
         menu.addItem(pauseItem)
 
+        let nextItem = NSMenuItem(title: "menu.nextWallpaper".localized, action: #selector(nextWallpaper), keyEquivalent: "n")
+        nextItem.target = self
+        menu.addItem(nextItem)
+
         screenPauseMenu = NSMenu(title: "menu.pauseScreen".localized)
         let screenPauseItem = NSMenuItem(title: "menu.pauseScreen".localized, action: nil, keyEquivalent: "")
         screenPauseItem.submenu = screenPauseMenu
@@ -106,8 +110,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             item.representedObject = path
             item.target = self
 
-            if path == SettingsManager.shared.wallpaperPath {
-                item.state = .on
+            if SettingsManager.shared.isFolderMode {
+                if path == SettingsManager.shared.folderPath {
+                    item.state = .on
+                }
+            } else {
+                if path == SettingsManager.shared.wallpaperPath {
+                    item.state = .on
+                }
             }
 
             let icon = iconFor(path: path)
@@ -144,12 +154,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func switchToRecent(_ sender: NSMenuItem) {
-        guard let path = sender.representedObject as? String,
-              FileManager.default.fileExists(atPath: path) else { return }
+        guard let path = sender.representedObject as? String else { return }
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir) else { return }
         let url = URL(fileURLWithPath: path)
-        wallpaperManager.setWallpaper(url: url)
-        SettingsManager.shared.wallpaperPath = path
-        SettingsManager.shared.isFolderMode = false
+        
+        if isDir.boolValue {
+            wallpaperManager.setFolder(url: url)
+        } else {
+            wallpaperManager.setWallpaper(url: url)
+            SettingsManager.shared.wallpaperPath = path
+            SettingsManager.shared.isFolderMode = false
+        }
+        
         mainWindow.updateUI()
         rebuildRecentMenu()
     }
@@ -264,6 +281,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func quitApp() {
         wallpaperManager.stopAll()
         NSApp.terminate(nil)
+    }
+
+    @objc func nextWallpaper() {
+        wallpaperManager.nextWallpaper()
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(nextWallpaper) {
+            return SettingsManager.shared.isFolderMode
+        }
+        return true
     }
 }
 

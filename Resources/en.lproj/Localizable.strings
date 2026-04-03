@@ -43,6 +43,7 @@
 "menu.pause" = "Pause Wallpaper";
 "menu.resume" = "Resume Wallpaper";
 "menu.pauseAll" = "Pause All";
+"menu.nextWallpaper" = "Next Wallpaper";
 "menu.pauseScreen" = "Pause Screen";
 "menu.recent" = "Recent Wallpapers";
 "menu.clearHistory" = "Clear History";
