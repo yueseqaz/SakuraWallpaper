@@ -235,7 +235,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         previewContainer.layer?.addSublayer(previewPlayerLayer)
 
         let layout = NSCollectionViewFlowLayout()
-        layout.itemSize = NSSize(width: 100, height: 100)
+        layout.itemSize = NSSize(width: 80, height: 80)
         layout.sectionInset = NSEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
         layout.minimumInteritemSpacing = 10
         layout.minimumLineSpacing = 10
@@ -612,16 +612,20 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
     private func showPreview(url: URL, type: MediaType) {
         dropZone.isHidden = true
-
-        if SettingsManager.shared.isFolderMode {
-            scrollView.isHidden = false
-            previewImageView.isHidden = true
-            previewPlayerLayer.isHidden = true
-            collectionView.reloadData()
-            return
-        }
+        let isFolder = SettingsManager.shared.isFolderMode
         
-        scrollView.isHidden = true
+        if isFolder {
+            scrollView.isHidden = false
+            scrollView.frame = NSRect(x: 0, y: 0, width: 460, height: 100)
+            let previewFrame = NSRect(x: 0, y: 100, width: 460, height: 140)
+            previewImageView.frame = previewFrame
+            previewPlayerLayer.frame = previewFrame
+            collectionView.reloadData()
+        } else {
+            scrollView.isHidden = true
+            previewImageView.frame = previewContainer.bounds
+            previewPlayerLayer.frame = previewContainer.bounds
+        }
 
         switch type {
         case .image:
