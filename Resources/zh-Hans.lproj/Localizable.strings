@@ -17,7 +17,7 @@
 "ui.chooseWallpaper" = "选择壁纸";
 "ui.selectFile" = "选择文件";
 "ui.selectFolder" = "选择文件夹";
-"ui.stopWallpaper" = "停止";
+"ui.stopWallpaper" = "清除";
 "ui.noWallpaper" = "未选择壁纸";
 "ui.status" = "状态: %@";
 "ui.playing" = "正在运行";
@@ -51,7 +51,7 @@
 "menu.pauseAll" = "暂停播放";
 "menu.autoPause" = "省电模式";
 "menu.nextWallpaper" = "下一张壁纸";
-"menu.stopWallpaper" = "停止播放";
+"menu.stopWallpaper" = "清除壁纸";
 "menu.pauseScreen" = "分屏幕暂停";
 "menu.recent" = "最近使用";
 "menu.clearHistory" = "清除历史";

@@ -17,7 +17,7 @@
 "ui.chooseWallpaper" = "Pick Wallpaper";
 "ui.selectFile" = "Pick File";
 "ui.selectFolder" = "Pick Folder";
-"ui.stopWallpaper" = "Stop";
+"ui.stopWallpaper" = "Clear";
 "ui.noWallpaper" = "No wallpaper selected";
 "ui.status" = "Status: %@";
 "ui.playing" = "Live";
@@ -51,7 +51,7 @@
 "menu.pauseAll" = "Pause Playback";
 "menu.autoPause" = "Battery Saver";
 "menu.nextWallpaper" = "Next Wallpaper";
-"menu.stopWallpaper" = "Stop Wallpaper";
+"menu.stopWallpaper" = "Clear Wallpaper";
 "menu.pauseScreen" = "Per-Screen Pause";
 "menu.recent" = "Recent";
 "menu.clearHistory" = "Clear History";
