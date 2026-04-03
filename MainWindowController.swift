@@ -307,20 +307,26 @@ class MainWindowController: NSWindowController {
     }
 
     private func setWallpaper(url: URL) throws {
-        guard FileManager.default.fileExists(atPath: url.path) else {
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) else {
             throw WallpaperError.fileNotFound
         }
 
-        let type = MediaType.detect(url)
-        guard type != .unsupported else {
-            throw WallpaperError.unsupportedFormat
-        }
-
-        if let screen = selectedScreen {
-            wallpaperManager.setWallpaper(url: url, for: screen)
+        if isDir.boolValue {
+            wallpaperManager.setFolder(url: url)
         } else {
-            wallpaperManager.setWallpaper(url: url)
-            SettingsManager.shared.wallpaperPath = url.path
+            let type = MediaType.detect(url)
+            guard type != .unsupported else {
+                throw WallpaperError.unsupportedFormat
+            }
+            SettingsManager.shared.isFolderMode = false
+
+            if let screen = selectedScreen {
+                wallpaperManager.setWallpaper(url: url, for: screen)
+            } else {
+                wallpaperManager.setWallpaper(url: url)
+                SettingsManager.shared.wallpaperPath = url.path
+            }
         }
         updateUI()
         (NSApp.delegate as? AppDelegate)?.rebuildRecentMenu()
@@ -376,7 +382,11 @@ class MainWindowController: NSWindowController {
             let type = MediaType.detect(url)
 
             fileNameLabel.stringValue = filename
-            fileTypeLabel.stringValue = type == .video ? "ui.video".localized : "ui.image".localized
+            if SettingsManager.shared.isFolderMode {
+                fileTypeLabel.stringValue = "ui.folderMode".localized
+            } else {
+                fileTypeLabel.stringValue = type == .video ? "ui.video".localized : "ui.image".localized
+            }
 
             statusIndicator.layer?.backgroundColor = NSColor.systemGreen.cgColor
             statusLabel.stringValue = "ui.active".localized

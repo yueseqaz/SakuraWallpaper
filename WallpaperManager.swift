@@ -10,6 +10,10 @@ class WallpaperManager {
     private var pauseCheckTimer: Timer?
     private var pausedScreens: Set<String> = []
 
+    var playlist: [URL] = []
+    private var currentPlaylistIndex: Int = 0
+    private var rotationTimer: Timer?
+
     var currentFile: URL? {
         currentFiles.values.first
     }
@@ -40,6 +44,7 @@ class WallpaperManager {
     deinit {
         stopKeepVisibleTimer()
         stopPauseCheckTimer()
+        stopRotationTimer()
         NotificationCenter.default.removeObserver(self)
         NSWorkspace.shared.notificationCenter.removeObserver(self)
     }
@@ -83,6 +88,68 @@ class WallpaperManager {
     }
 
     private var isPausedInternally: Bool = false
+
+    private func stopRotationTimer() {
+        rotationTimer?.invalidate()
+        rotationTimer = nil
+    }
+
+    func startRotationTimer() {
+        stopRotationTimer()
+        guard playlist.count > 1 else { return }
+        
+        let interval = TimeInterval(SettingsManager.shared.rotationIntervalMinutes * 60)
+        rotationTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+            self?.nextWallpaper()
+        }
+    }
+
+    @objc func nextWallpaper() {
+        guard !playlist.isEmpty else { return }
+        currentPlaylistIndex = (currentPlaylistIndex + 1) % playlist.count
+        let nextURL = playlist[currentPlaylistIndex]
+        
+        for screen in NSScreen.screens {
+            let id = SettingsManager.screenIdentifier(screen)
+            players[id]?.cleanup()
+            players.removeValue(forKey: id)
+            currentFiles[id] = nextURL
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            self?.createAllPlayers()
+            if self?.isPaused == true || self?.isPausedInternally == true {
+                self?.players.values.forEach { $0.pausePlayback(); $0.window?.orderOut(nil) }
+            }
+        }
+    }
+
+    func setFolder(url: URL) {
+        stopAll()
+        SettingsManager.shared.isFolderMode = true
+        SettingsManager.shared.folderPath = url.path
+        
+        do {
+            let files = try FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])
+            playlist = files.filter { MediaType.detect($0) != .unsupported }.sorted { $0.lastPathComponent < $1.lastPathComponent }
+            currentPlaylistIndex = 0
+            
+            if let firstURL = playlist.first {
+                for screen in NSScreen.screens {
+                    let id = SettingsManager.screenIdentifier(screen)
+                    currentFiles[id] = firstURL
+                }
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+                    self?.createAllPlayers()
+                    self?.startKeepVisibleTimer()
+                    self?.startRotationTimer()
+                }
+            }
+        } catch {
+            print("Failed to read directory: \(error)")
+        }
+    }
 
     @objc private func screensChanged() {
         let currentScreenIds = Set(NSScreen.screens.map { SettingsManager.screenIdentifier($0) })
