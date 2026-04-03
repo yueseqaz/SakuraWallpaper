@@ -59,9 +59,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         statusMenuItem.isEnabled = false
         menu.addItem(statusMenuItem)
 
-        autoPauseItem = NSMenuItem(title: "menu.autoPause".localized, action: #selector(toggleAutoPause), keyEquivalent: "")
-        autoPauseItem.target = self
-        menu.addItem(autoPauseItem)
+        pauseItem = NSMenuItem(title: "menu.pauseAll".localized, action: #selector(togglePause), keyEquivalent: "p")
+        pauseItem.target = self
+        menu.addItem(pauseItem)
 
         nextMenuItem = NSMenuItem(title: "menu.nextWallpaper".localized, action: #selector(nextWallpaper), keyEquivalent: "n")
         nextMenuItem.target = self

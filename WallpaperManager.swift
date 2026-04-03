@@ -336,6 +336,7 @@ class WallpaperManager {
     }
 
     func setWallpaper(url: URL, for screen: NSScreen) {
+        stopRotationTimer()
         let id = SettingsManager.screenIdentifier(screen)
         players[id]?.cleanup()
         players.removeValue(forKey: id)
@@ -373,6 +374,8 @@ class WallpaperManager {
     }
 
     func stopAll() {
+        isPaused = false
+        isPausedInternally = false
         stopKeepVisibleTimer()
         stopRotationTimer()
         players.values.forEach { $0.cleanup() }

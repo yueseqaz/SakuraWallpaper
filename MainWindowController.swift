@@ -483,6 +483,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
     @objc func shuffleSwitchChanged(_ sender: NSButton) {
         SettingsManager.shared.isShuffleMode = (sender.state == .on)
+        updateUI()
     }
 
     @objc func rotationSwitchChanged(_ sender: NSButton) {
@@ -532,8 +533,9 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         return "\(hrs) \(hrString) \(remainingMinutes) \("ui.minutes".localized)"
     }
 
+    private var currentPreviewPath: String?
+
     func updateUI() {
-        clearPreview()
         updateScreenMenu()
 
         let isAllScreens = (selectedScreen == nil)
@@ -543,9 +545,14 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         
         let isFolderMode = SettingsManager.shared.isFolderMode
         let isRotationEnabled = SettingsManager.shared.isRotationEnabled
+        let isShuffleMode = SettingsManager.shared.isShuffleMode
         
         rotationSwitch.isEnabled = isFolderMode
+        rotationSwitch.state = isRotationEnabled ? .on : .off
+        
         shuffleSwitch.isEnabled = isFolderMode && isRotationEnabled
+        shuffleSwitch.state = isShuffleMode ? .on : .off
+        
         intervalField.isEnabled = isFolderMode && isRotationEnabled
         intervalStepper.isEnabled = isFolderMode && isRotationEnabled
         
@@ -575,7 +582,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
             if isFolderMode {
                 let current = wallpaperManager.currentPlaylistIndex + 1
                 let total = wallpaperManager.playlist.count
-                let shuffleIcon = SettingsManager.shared.isShuffleMode ? "🔀 " : ""
+                let shuffleIcon = isShuffleMode ? "🔀 " : ""
                 fileNameLabel.stringValue = "\(shuffleIcon)\(filename) (\(current)/\(total))"
                 fileTypeLabel.stringValue = "ui.folderMode".localized
             } else {
@@ -588,14 +595,18 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
                 statusIndicator.layer?.backgroundColor = NSColor.systemYellow.cgColor
                 statusLabel.stringValue = "ui.status".localized("ui.paused".localized)
                 statusLabel.textColor = .systemYellow
+                previewPlayer?.pause()
             } else {
                 statusIndicator.layer?.backgroundColor = NSColor.systemGreen.cgColor
                 statusLabel.stringValue = "ui.status".localized("ui.playing".localized)
                 statusLabel.textColor = .systemGreen
+                previewPlayer?.play()
             }
 
             showPreview(url: url, type: type)
         } else {
+            currentPreviewPath = nil
+            clearPreview()
             fileNameLabel.stringValue = "ui.noWallpaper".localized
             fileTypeLabel.stringValue = ""
 
@@ -611,7 +622,17 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     }
 
     private func showPreview(url: URL, type: MediaType) {
+        if currentPreviewPath == url.path {
+            if SettingsManager.shared.isFolderMode {
+                collectionView.reloadData()
+            }
+            return
+        }
+        
+        currentPreviewPath = url.path
+        clearPreview()
         dropZone.isHidden = true
+        
         let isFolder = SettingsManager.shared.isFolderMode
         
         if isFolder {
