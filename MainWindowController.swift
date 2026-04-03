@@ -19,6 +19,9 @@ class MainWindowController: NSWindowController {
     private var stopButton: NSButton!
     private var launchSwitch: NSButton!
     private var pauseSwitch: NSButton!
+    private var intervalField: NSTextField!
+    private var intervalStepper: NSStepper!
+    private var intervalLabel: NSTextField!
     private var dropZone: NSView!
     private var dropLabel: NSTextField!
     private var screenPopUp: NSPopUpButton!
@@ -59,7 +62,7 @@ class MainWindowController: NSWindowController {
     }
 
     private func createHeader() -> NSView {
-        let header = NSView(frame: NSRect(x: 0, y: 420, width: 460, height: 60))
+        let header = NSView(frame: NSRect(x: 0, y: 460, width: 460, height: 60))
 
         let appIcon = NSTextField(labelWithString: "🌸")
         appIcon.font = NSFont.systemFont(ofSize: 32)
@@ -93,7 +96,7 @@ class MainWindowController: NSWindowController {
     }
 
     private func createScreenSelector() -> NSView {
-        let container = NSView(frame: NSRect(x: 20, y: 375, width: 420, height: 40))
+        let container = NSView(frame: NSRect(x: 20, y: 415, width: 420, height: 40))
 
         let label = NSTextField(labelWithString: "\("ui.screen".localized):")
         label.font = NSFont.systemFont(ofSize: 12, weight: .medium)
@@ -154,7 +157,7 @@ class MainWindowController: NSWindowController {
     }
 
     private func createPreviewContainer() -> NSView {
-        previewContainer = NSView(frame: NSRect(x: 20, y: 160, width: 420, height: 200))
+        previewContainer = NSView(frame: NSRect(x: 20, y: 200, width: 420, height: 200))
         previewContainer.wantsLayer = true
         previewContainer.layer?.cornerRadius = 12
         previewContainer.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
@@ -202,7 +205,7 @@ class MainWindowController: NSWindowController {
     }
 
     private func createInfoBar() -> NSView {
-        let bar = NSView(frame: NSRect(x: 20, y: 125, width: 420, height: 30))
+        let bar = NSView(frame: NSRect(x: 20, y: 165, width: 420, height: 30))
 
         fileNameLabel = NSTextField(labelWithString: "ui.noWallpaper".localized)
         fileNameLabel.font = NSFont.systemFont(ofSize: 12, weight: .medium)
@@ -241,21 +244,54 @@ class MainWindowController: NSWindowController {
     }
 
     private func createSettings() -> NSView {
-        let settings = NSView(frame: NSRect(x: 20, y: 45, width: 420, height: 25))
+        let settings = NSView(frame: NSRect(x: 20, y: 45, width: 420, height: 60))
 
         launchSwitch = NSButton(checkboxWithTitle: "ui.launchAtLogin".localized,
                                 target: self, action: #selector(launchSwitchChanged))
         launchSwitch.font = NSFont.systemFont(ofSize: 12)
-        launchSwitch.frame = NSRect(x: 0, y: 2, width: 120, height: 20)
+        launchSwitch.frame = NSRect(x: 0, y: 35, width: 120, height: 20)
         launchSwitch.state = SettingsManager.shared.launchAtLogin ? .on : .off
         settings.addSubview(launchSwitch)
 
         pauseSwitch = NSButton(checkboxWithTitle: "ui.pauseWhenInvisible".localized,
                                target: self, action: #selector(pauseSwitchChanged))
         pauseSwitch.font = NSFont.systemFont(ofSize: 12)
-        pauseSwitch.frame = NSRect(x: 130, y: 2, width: 160, height: 20)
+        pauseSwitch.frame = NSRect(x: 130, y: 35, width: 160, height: 20)
         pauseSwitch.state = SettingsManager.shared.pauseWhenInvisible ? .on : .off
         settings.addSubview(pauseSwitch)
+
+        let intervalLabelPrefix = NSTextField(labelWithString: "ui.rotationInterval".localized + ":")
+        intervalLabelPrefix.font = NSFont.systemFont(ofSize: 12)
+        intervalLabelPrefix.frame = NSRect(x: 0, y: 5, width: 100, height: 20)
+        settings.addSubview(intervalLabelPrefix)
+
+        intervalField = NSTextField(frame: NSRect(x: 105, y: 5, width: 40, height: 22))
+        intervalField.font = NSFont.systemFont(ofSize: 12)
+        intervalField.alignment = .right
+        intervalField.target = self
+        intervalField.action = #selector(intervalFieldChanged)
+        let formatter = NumberFormatter()
+        formatter.allowsFloats = false
+        formatter.minimum = 1
+        intervalField.formatter = formatter
+        intervalField.integerValue = SettingsManager.shared.rotationIntervalMinutes
+        settings.addSubview(intervalField)
+
+        intervalStepper = NSStepper(frame: NSRect(x: 145, y: 5, width: 15, height: 22))
+        intervalStepper.minValue = 1
+        intervalStepper.maxValue = 1440
+        intervalStepper.increment = 1
+        intervalStepper.valueWraps = false
+        intervalStepper.integerValue = SettingsManager.shared.rotationIntervalMinutes
+        intervalStepper.target = self
+        intervalStepper.action = #selector(intervalStepperChanged)
+        settings.addSubview(intervalStepper)
+
+        intervalLabel = NSTextField(labelWithString: formatInterval(minutes: SettingsManager.shared.rotationIntervalMinutes))
+        intervalLabel.font = NSFont.systemFont(ofSize: 11)
+        intervalLabel.textColor = .secondaryLabelColor
+        intervalLabel.frame = NSRect(x: 170, y: 5, width: 150, height: 20)
+        settings.addSubview(intervalLabel)
 
         return settings
     }
@@ -358,6 +394,40 @@ class MainWindowController: NSWindowController {
 
     @objc func pauseSwitchChanged(_ sender: NSButton) {
         SettingsManager.shared.pauseWhenInvisible = (sender.state == .on)
+    }
+
+    @objc func intervalFieldChanged(_ sender: NSTextField) {
+        let val = max(1, sender.integerValue)
+        sender.integerValue = val
+        intervalStepper.integerValue = val
+        updateInterval(minutes: val)
+    }
+
+    @objc func intervalStepperChanged(_ sender: NSStepper) {
+        let val = sender.integerValue
+        intervalField.integerValue = val
+        updateInterval(minutes: val)
+    }
+
+    private func updateInterval(minutes: Int) {
+        SettingsManager.shared.rotationIntervalMinutes = minutes
+        intervalLabel.stringValue = formatInterval(minutes: minutes)
+        if SettingsManager.shared.isFolderMode {
+            wallpaperManager.startRotationTimer()
+        }
+    }
+
+    private func formatInterval(minutes: Int) -> String {
+        if minutes < 60 {
+            return "\(minutes) \("ui.minutes".localized)"
+        }
+        let hrs = minutes / 60
+        let mins = minutes % 60
+        let hrString = hrs == 1 ? "ui.hour".localized : "ui.hours".localized
+        if mins == 0 {
+            return "\(hrs) \(hrString)"
+        }
+        return "\(hrs) \(hrString) \(mins) \("ui.minutes".localized)"
     }
 
     func updateUI() {
