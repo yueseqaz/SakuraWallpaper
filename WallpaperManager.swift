@@ -7,6 +7,7 @@ class WallpaperManager {
     var isActive: Bool { !players.isEmpty }
     var isPaused: Bool = false
     private var keepVisibleTimer: Timer?
+    private var pauseCheckTimer: Timer?
     private var pausedScreens: Set<String> = []
 
     var currentFile: URL? {
@@ -32,13 +33,56 @@ class WallpaperManager {
             name: NSWorkspace.activeSpaceDidChangeNotification,
             object: nil
         )
+
+        startPauseCheckTimer()
     }
 
     deinit {
         stopKeepVisibleTimer()
+        stopPauseCheckTimer()
         NotificationCenter.default.removeObserver(self)
         NSWorkspace.shared.notificationCenter.removeObserver(self)
     }
+
+    private func startPauseCheckTimer() {
+        pauseCheckTimer?.invalidate()
+        pauseCheckTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+            self?.checkPlaybackState()
+        }
+    }
+
+    private func stopPauseCheckTimer() {
+        pauseCheckTimer?.invalidate()
+        pauseCheckTimer = nil
+    }
+
+    @objc private func checkPlaybackState() {
+        guard SettingsManager.shared.pauseWhenInvisible else {
+            if isPausedInternally {
+                isPausedInternally = false
+                if !isPaused { resumeAll() }
+            }
+            return
+        }
+
+        let frontmostApp = NSWorkspace.shared.frontmostApplication
+        let bundleID = frontmostApp?.bundleIdentifier
+        let isDesktopActive = bundleID == "com.apple.finder" || bundleID == "com.sakura.wallpaper"
+
+        if isDesktopActive {
+            if isPausedInternally {
+                isPausedInternally = false
+                if !isPaused { resumeAll() }
+            }
+        } else {
+            if !isPausedInternally {
+                isPausedInternally = true
+                pauseAll()
+            }
+        }
+    }
+
+    private var isPausedInternally: Bool = false
 
     @objc private func screensChanged() {
         let currentScreenIds = Set(NSScreen.screens.map { SettingsManager.screenIdentifier($0) })
