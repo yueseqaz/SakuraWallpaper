@@ -103,7 +103,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         statusIndicator.layer?.backgroundColor = NSColor.systemGray.cgColor
         statusContainer.addSubview(statusIndicator)
 
-        statusLabel = NSTextField(labelWithString: "ui.inactive".localized)
+        statusLabel = NSTextField(labelWithString: "ui.status".localized("ui.notSet".localized))
         statusLabel.font = NSFont.systemFont(ofSize: 12, weight: .medium)
         statusLabel.textColor = .secondaryLabelColor
         statusLabel.frame = NSRect(x: 15, y: 10, width: 110, height: 16)
@@ -572,11 +572,11 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
             if wallpaperManager.isPaused || (SettingsManager.shared.pauseWhenInvisible && wallpaperManager.isPausedInternally) {
                 statusIndicator.layer?.backgroundColor = NSColor.systemYellow.cgColor
-                statusLabel.stringValue = "ui.paused".localized
+                statusLabel.stringValue = "ui.status".localized("ui.paused".localized)
                 statusLabel.textColor = .systemYellow
             } else {
                 statusIndicator.layer?.backgroundColor = NSColor.systemGreen.cgColor
-                statusLabel.stringValue = "ui.playing".localized
+                statusLabel.stringValue = "ui.status".localized("ui.playing".localized)
                 statusLabel.textColor = .systemGreen
             }
 
@@ -586,7 +586,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
             fileTypeLabel.stringValue = ""
 
             statusIndicator.layer?.backgroundColor = NSColor.tertiaryLabelColor.cgColor
-            statusLabel.stringValue = "ui.notSet".localized
+            statusLabel.stringValue = "ui.status".localized("ui.notSet".localized)
             statusLabel.textColor = .secondaryLabelColor
 
             dropZone.isHidden = false

@@ -14,20 +14,21 @@
 "error.screenNotFound.message" = "The selected screen is no longer available.";
 
 // UI
-"ui.chooseWallpaper" = "Choose Wallpaper";
-"ui.selectFile" = "Select File";
-"ui.selectFolder" = "Select Folder";
-"ui.stopWallpaper" = "Clear Wallpaper";
+"ui.chooseWallpaper" = "Pick Wallpaper";
+"ui.selectFile" = "Pick File";
+"ui.selectFolder" = "Pick Folder";
+"ui.stopWallpaper" = "Stop";
 "ui.noWallpaper" = "No wallpaper selected";
-"ui.playing" = "Playing";
+"ui.status" = "Status: %@";
+"ui.playing" = "Live";
 "ui.paused" = "Paused";
-"ui.notSet" = "No Wallpaper";
+"ui.notSet" = "None";
 "ui.launchAtLogin" = "Launch at Login";
-"ui.pauseWhenInvisible" = "Auto-Pause (Battery Saver)";
-"ui.rotationInterval" = "Rotation Interval";
+"ui.pauseWhenInvisible" = "Battery Saver";
+"ui.rotationInterval" = "Interval";
 "ui.enableRotation" = "Enable Rotation";
 "ui.folderMode" = "Rotation Mode";
-"ui.shuffleMode" = "Shuffle Wallpapers";
+"ui.shuffleMode" = "Shuffle";
 "ui.minutes" = "mins";
 "ui.hour" = "hour";
 "ui.hours" = "hours";
@@ -35,19 +36,21 @@
 "ui.screen" = "Screen";
 "ui.video" = "Video";
 "ui.image" = "Image";
-"ui.dropHere" = "Click \"Choose Wallpaper\" to get started";
-"ui.formats" = "MP4, MOV, GIF, PNG, JPG, HEIC, WebP";
+"ui.dropHere" = "Drop or Pick a Wallpaper";
+"ui.formats" = "Supports MP4, MOV, GIF, PNG, JPG, WebP";
 "ui.madeBy" = "Made with %@ by sakura";
 
 // Menu
 "menu.open" = "Open SakuraWallpaper";
-"menu.pause" = "Pause Wallpaper";
-"menu.resume" = "Resume Wallpaper";
-"menu.pauseAll" = "Pause All";
-"menu.autoPause" = "Auto-Pause (Battery Saver)";
+"menu.status" = "Status: %@";
+"menu.pause" = "Pause";
+"menu.resume" = "Resume";
+"menu.pauseAll" = "Pause Playback";
+"menu.autoPause" = "Battery Saver";
 "menu.nextWallpaper" = "Next Wallpaper";
-"menu.pauseScreen" = "Pause Screen";
-"menu.recent" = "Recent Wallpapers";
+"menu.stopWallpaper" = "Stop Wallpaper";
+"menu.pauseScreen" = "Per-Screen Pause";
+"menu.recent" = "Recent";
 "menu.clearHistory" = "Clear History";
 "menu.about" = "About";
 "menu.quit" = "Quit";

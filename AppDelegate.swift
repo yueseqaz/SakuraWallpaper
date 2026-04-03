@@ -3,6 +3,7 @@ import AVFoundation
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem!
+    var statusMenuItem: NSMenuItem!
     var mainWindow: MainWindowController!
     var wallpaperManager: WallpaperManager!
     var recentMenu: NSMenu!
@@ -51,17 +52,29 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         openItem.target = self
         menu.addItem(openItem)
 
+        menu.addItem(.separator())
+
+        statusMenuItem = NSMenuItem(title: "menu.status".localized("ui.notSet".localized), action: nil, keyEquivalent: "")
+        statusMenuItem.isEnabled = false
+        menu.addItem(statusMenuItem)
+
         pauseItem = NSMenuItem(title: "menu.pauseAll".localized, action: #selector(togglePause), keyEquivalent: "p")
         pauseItem.target = self
         menu.addItem(pauseItem)
 
-        autoPauseItem = NSMenuItem(title: "menu.autoPause".localized, action: #selector(toggleAutoPause), keyEquivalent: "")
-        autoPauseItem.target = self
-        menu.addItem(autoPauseItem)
-
         let nextItem = NSMenuItem(title: "menu.nextWallpaper".localized, action: #selector(nextWallpaper), keyEquivalent: "n")
         nextItem.target = self
         menu.addItem(nextItem)
+
+        let stopItem = NSMenuItem(title: "menu.stopWallpaper".localized, action: #selector(stopWallpaper), keyEquivalent: "s")
+        stopItem.target = self
+        menu.addItem(stopItem)
+
+        menu.addItem(.separator())
+
+        autoPauseItem = NSMenuItem(title: "menu.autoPause".localized, action: #selector(toggleAutoPause), keyEquivalent: "")
+        autoPauseItem.target = self
+        menu.addItem(autoPauseItem)
 
         screenPauseMenu = NSMenu(title: "menu.pauseScreen".localized)
         let screenPauseItem = NSMenuItem(title: "menu.pauseScreen".localized, action: nil, keyEquivalent: "")
@@ -283,6 +296,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func updateAutoPauseItem() {
         autoPauseItem.state = SettingsManager.shared.pauseWhenInvisible ? .on : .off
+        
+        let statusStr: String
+        if !wallpaperManager.isActive {
+            statusStr = "ui.notSet".localized
+        } else if wallpaperManager.isPaused || (SettingsManager.shared.pauseWhenInvisible && wallpaperManager.isPausedInternally) {
+            statusStr = "ui.paused".localized
+        } else {
+            statusStr = "ui.playing".localized
+        }
+        statusMenuItem.title = "menu.status".localized(statusStr)
     }
 
     @objc func showAbout() {
