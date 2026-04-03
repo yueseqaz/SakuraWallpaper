@@ -24,6 +24,7 @@
 "ui.rotationInterval" = "Rotation Interval";
 "ui.folderMode" = "Folder Mode";
 "ui.minutes" = "mins";
+"ui.seconds" = "secs";
 "ui.hour" = "hour";
 "ui.hours" = "hours";
 "ui.applyToAll" = "Apply to All";

@@ -24,6 +24,7 @@
 "ui.rotationInterval" = "轮播间隔";
 "ui.folderMode" = "文件夹模式";
 "ui.minutes" = "分钟";
+"ui.seconds" = "秒";
 "ui.hour" = "小时";
 "ui.hours" = "小时";
 "ui.applyToAll" = "应用到全部";

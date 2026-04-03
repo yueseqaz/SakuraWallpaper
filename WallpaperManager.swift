@@ -98,7 +98,7 @@ class WallpaperManager {
         stopRotationTimer()
         guard playlist.count > 1 else { return }
         
-        let interval = TimeInterval(SettingsManager.shared.rotationIntervalMinutes * 60)
+        let interval = TimeInterval(SettingsManager.shared.rotationIntervalSeconds)
         rotationTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             self?.nextWallpaper()
         }
