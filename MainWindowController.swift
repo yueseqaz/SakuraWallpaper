@@ -460,6 +460,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
     @objc func pauseSwitchChanged(_ sender: NSButton) {
         SettingsManager.shared.pauseWhenInvisible = (sender.state == .on)
+        wallpaperManager.checkPlaybackState()
     }
 
     @objc func shuffleSwitchChanged(_ sender: NSButton) {

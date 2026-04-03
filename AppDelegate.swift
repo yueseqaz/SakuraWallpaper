@@ -8,6 +8,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var recentMenu: NSMenu!
     var aboutWindow: AboutWindowController?
     var pauseItem: NSMenuItem!
+    var autoPauseItem: NSMenuItem!
     var screenPauseMenu: NSMenu!
     var languageMenu: NSMenu!
 
@@ -53,6 +54,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         pauseItem = NSMenuItem(title: "menu.pauseAll".localized, action: #selector(togglePause), keyEquivalent: "p")
         pauseItem.target = self
         menu.addItem(pauseItem)
+
+        autoPauseItem = NSMenuItem(title: "menu.autoPause".localized, action: #selector(toggleAutoPause), keyEquivalent: "")
+        autoPauseItem.target = self
+        menu.addItem(autoPauseItem)
 
         let nextItem = NSMenuItem(title: "menu.nextWallpaper".localized, action: #selector(nextWallpaper), keyEquivalent: "n")
         nextItem.target = self
@@ -264,9 +269,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         mainWindow.updateUI()
     }
 
+    @objc func toggleAutoPause() {
+        SettingsManager.shared.pauseWhenInvisible = !SettingsManager.shared.pauseWhenInvisible
+        wallpaperManager.checkPlaybackState()
+        updateAutoPauseItem()
+        mainWindow.updateUI()
+    }
+
     private func updatePauseItem() {
         pauseItem.title = wallpaperManager.isPaused ? "menu.resume".localized : "menu.pause".localized
         pauseItem.isEnabled = wallpaperManager.isActive
+    }
+
+    private func updateAutoPauseItem() {
+        autoPauseItem.state = SettingsManager.shared.pauseWhenInvisible ? .on : .off
     }
 
     @objc func showAbout() {
@@ -301,5 +317,6 @@ extension AppDelegate: NSMenuDelegate {
         rebuildScreenPauseMenu()
         rebuildLanguageMenu()
         updatePauseItem()
+        updateAutoPauseItem()
     }
 }

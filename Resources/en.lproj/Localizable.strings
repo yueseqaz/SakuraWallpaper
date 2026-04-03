@@ -22,7 +22,7 @@
 "ui.active" = "Active";
 "ui.inactive" = "Inactive";
 "ui.launchAtLogin" = "Launch at Login";
-"ui.pauseWhenInvisible" = "Pause when inactive";
+"ui.pauseWhenInvisible" = "Auto-Pause (Battery Saver)";
 "ui.rotationInterval" = "Rotation Interval";
 "ui.enableRotation" = "Enable Rotation";
 "ui.folderMode" = "Rotation Mode";
@@ -43,6 +43,7 @@
 "menu.pause" = "Pause Wallpaper";
 "menu.resume" = "Resume Wallpaper";
 "menu.pauseAll" = "Pause All";
+"menu.autoPause" = "Auto-Pause (Battery Saver)";
 "menu.nextWallpaper" = "Next Wallpaper";
 "menu.pauseScreen" = "Pause Screen";
 "menu.recent" = "Recent Wallpapers";

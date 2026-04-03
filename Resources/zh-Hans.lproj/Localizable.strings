@@ -22,7 +22,7 @@
 "ui.active" = "运行中";
 "ui.inactive" = "未激活";
 "ui.launchAtLogin" = "开机自启动";
-"ui.pauseWhenInvisible" = "不可见时暂停";
+"ui.pauseWhenInvisible" = "自动暂停 (省电模式)";
 "ui.rotationInterval" = "轮播间隔";
 "ui.enableRotation" = "开启轮播";
 "ui.folderMode" = "轮播模式";
@@ -43,6 +43,7 @@
 "menu.pause" = "暂停壁纸";
 "menu.resume" = "恢复壁纸";
 "menu.pauseAll" = "全部暂停";
+"menu.autoPause" = "自动暂停 (省电模式)";
 "menu.nextWallpaper" = "下一张壁纸";
 "menu.pauseScreen" = "暂停屏幕";
 "menu.recent" = "最近使用";

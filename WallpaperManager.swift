@@ -7,7 +7,6 @@ class WallpaperManager {
     var isActive: Bool { !players.isEmpty }
     var isPaused: Bool = false
     private var keepVisibleTimer: Timer?
-    private var pauseCheckTimer: Timer?
     private var pausedScreens: Set<String> = []
 
     var playlist: [URL] = []
@@ -35,35 +34,26 @@ class WallpaperManager {
         )
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
-            selector: #selector(appBecameActive),
+            selector: #selector(checkPlaybackState),
             name: NSWorkspace.activeSpaceDidChangeNotification,
             object: nil
         )
-
-        startPauseCheckTimer()
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(checkPlaybackState),
+            name: NSWorkspace.didActivateApplicationNotification,
+            object: nil
+        )
     }
 
     deinit {
         stopKeepVisibleTimer()
-        stopPauseCheckTimer()
         stopRotationTimer()
         NotificationCenter.default.removeObserver(self)
         NSWorkspace.shared.notificationCenter.removeObserver(self)
     }
 
-    private func startPauseCheckTimer() {
-        pauseCheckTimer?.invalidate()
-        pauseCheckTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
-            self?.checkPlaybackState()
-        }
-    }
-
-    private func stopPauseCheckTimer() {
-        pauseCheckTimer?.invalidate()
-        pauseCheckTimer = nil
-    }
-
-    @objc private func checkPlaybackState() {
+    @objc func checkPlaybackState() {
         guard SettingsManager.shared.pauseWhenInvisible else {
             if isPausedInternally {
                 isPausedInternally = false
@@ -244,10 +234,14 @@ class WallpaperManager {
     }
 
     @objc private func appBecameActive() {
-        resumeAll()
+        if !isPaused {
+            resumeAll()
+        }
         showAll()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-            self?.resumeAll()
+            if self?.isPaused == false {
+                self?.resumeAll()
+            }
             self?.showAll()
         }
     }
