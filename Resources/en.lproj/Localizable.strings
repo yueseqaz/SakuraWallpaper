@@ -15,6 +15,8 @@
 
 // UI
 "ui.chooseWallpaper" = "Choose Wallpaper";
+"ui.selectFile" = "Select File";
+"ui.selectFolder" = "Select Folder";
 "ui.stopWallpaper" = "Stop Wallpaper";
 "ui.noWallpaper" = "No wallpaper selected";
 "ui.active" = "Active";

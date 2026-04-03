@@ -15,13 +15,15 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource {
     private var fileTypeLabel: NSTextField!
     private var statusIndicator: NSView!
     private var statusLabel: NSTextField!
-    private var chooseButton: NSButton!
     private var stopButton: NSButton!
+    private var selectFileButton: NSButton!
+    private var selectFolderButton: NSButton!
     private var launchSwitch: NSButton!
     private var pauseSwitch: NSButton!
     private var intervalField: NSTextField!
     private var intervalStepper: NSStepper!
     private var intervalLabel: NSTextField!
+    private var intervalPrefix: NSTextField!
     private var collectionView: NSCollectionView!
     private var scrollView: NSScrollView!
     private var dropZone: NSView!
@@ -60,7 +62,16 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource {
         contentView.addSubview(createSettings())
         contentView.addSubview(createFooter())
 
+        NotificationCenter.default.addObserver(self, selector: #selector(rotationHappened), name: WallpaperManager.didRotateNotification, object: nil)
+
         updateUI()
+    }
+
+    @objc private func rotationHappened() {
+        DispatchQueue.main.async {
+            self.collectionView.reloadData()
+            self.updateUI()
+        }
     }
 
     private func createHeader() -> NSView {
@@ -248,18 +259,21 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource {
     private func createControls() -> NSView {
         let controls = NSView(frame: NSRect(x: 20, y: 160, width: 460, height: 50))
 
-        chooseButton = NSButton(title: "ui.chooseWallpaper".localized, target: self, action: #selector(chooseFile))
-        chooseButton.bezelStyle = .rounded
-        chooseButton.controlSize = .large
-        chooseButton.font = NSFont.systemFont(ofSize: 13, weight: .medium)
-        chooseButton.frame = NSRect(x: 0, y: 5, width: 160, height: 40)
-        controls.addSubview(chooseButton)
+        selectFileButton = NSButton(title: "ui.selectFile".localized, target: self, action: #selector(selectFile))
+        selectFileButton.bezelStyle = .rounded
+        selectFileButton.frame = NSRect(x: 0, y: 5, width: 110, height: 40)
+        controls.addSubview(selectFileButton)
+
+        selectFolderButton = NSButton(title: "ui.selectFolder".localized, target: self, action: #selector(selectFolder))
+        selectFolderButton.bezelStyle = .rounded
+        selectFolderButton.frame = NSRect(x: 115, y: 5, width: 110, height: 40)
+        controls.addSubview(selectFolderButton)
 
         stopButton = NSButton(title: "ui.stopWallpaper".localized, target: self, action: #selector(stopWallpaper))
         stopButton.bezelStyle = .rounded
         stopButton.controlSize = .large
         stopButton.font = NSFont.systemFont(ofSize: 13, weight: .medium)
-        stopButton.frame = NSRect(x: 170, y: 5, width: 160, height: 40)
+        stopButton.frame = NSRect(x: 230, y: 5, width: 160, height: 40)
         controls.addSubview(stopButton)
 
         return controls
@@ -282,10 +296,10 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource {
         pauseSwitch.state = SettingsManager.shared.pauseWhenInvisible ? .on : .off
         settings.addSubview(pauseSwitch)
 
-        let intervalLabelPrefix = NSTextField(labelWithString: "ui.rotationInterval".localized + ":")
-        intervalLabelPrefix.font = NSFont.systemFont(ofSize: 12)
-        intervalLabelPrefix.frame = NSRect(x: 0, y: 30, width: 120, height: 20)
-        settings.addSubview(intervalLabelPrefix)
+        intervalPrefix = NSTextField(labelWithString: "ui.rotationInterval".localized + ":")
+        intervalPrefix.font = NSFont.systemFont(ofSize: 12)
+        intervalPrefix.frame = NSRect(x: 0, y: 30, width: 120, height: 20)
+        settings.addSubview(intervalPrefix)
 
         intervalField = NSTextField(frame: NSRect(x: 125, y: 30, width: 50, height: 22))
         intervalField.font = NSFont.systemFont(ofSize: 12)
@@ -336,11 +350,22 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource {
         return footer
     }
 
-    @objc func chooseFile() {
+    @objc func selectFile() {
         let panel = NSOpenPanel()
-        panel.title = "ui.chooseWallpaper".localized
         panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        openPicker(panel: panel)
+    }
+
+    @objc func selectFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
         panel.canChooseDirectories = true
+        openPicker(panel: panel)
+    }
+
+    private func openPicker(panel: NSOpenPanel) {
+        panel.title = "ui.chooseWallpaper".localized
         panel.allowsMultipleSelection = false
 
         if #available(macOS 12.0, *) {
@@ -460,6 +485,12 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource {
         updateScreenMenu()
 
         stopButton.isEnabled = wallpaperManager.isActive
+        
+        let isFolderMode = SettingsManager.shared.isFolderMode
+        intervalField.isEnabled = isFolderMode
+        intervalStepper.isEnabled = isFolderMode
+        intervalPrefix.textColor = isFolderMode ? .labelColor : .disabledControlTextColor
+        intervalLabel.textColor = isFolderMode ? .secondaryLabelColor : .disabledControlTextColor
 
         var wallpaperPath: String?
         if let screen = selectedScreen {
@@ -476,10 +507,13 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource {
             let filename = (path as NSString).lastPathComponent
             let type = MediaType.detect(url)
 
-            fileNameLabel.stringValue = filename
-            if SettingsManager.shared.isFolderMode {
+            if isFolderMode {
+                let current = wallpaperManager.currentPlaylistIndex + 1
+                let total = wallpaperManager.playlist.count
+                fileNameLabel.stringValue = "\(filename) (\(current)/\(total))"
                 fileTypeLabel.stringValue = "ui.folderMode".localized
             } else {
+                fileNameLabel.stringValue = filename
                 fileTypeLabel.stringValue = type == .video ? "ui.video".localized : "ui.image".localized
             }
 
@@ -562,7 +596,8 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource {
     func collectionView(_ collectionView: NSCollectionView, itemForRepresentedObjectAt indexPath: IndexPath) -> NSCollectionViewItem {
         let item = collectionView.makeItem(withIdentifier: ThumbnailItem.identifier, for: indexPath) as! ThumbnailItem
         let url = wallpaperManager.playlist[indexPath.item]
-        item.configure(with: url)
+        let isActive = (indexPath.item == wallpaperManager.currentPlaylistIndex)
+        item.configure(with: url, isActive: isActive)
         return item
     }
 }

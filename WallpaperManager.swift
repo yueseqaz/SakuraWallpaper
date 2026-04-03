@@ -11,8 +11,10 @@ class WallpaperManager {
     private var pausedScreens: Set<String> = []
 
     var playlist: [URL] = []
-    private var currentPlaylistIndex: Int = 0
+    public private(set) var currentPlaylistIndex: Int = 0
     private var rotationTimer: Timer?
+
+    static let didRotateNotification = Notification.Name("WallpaperManagerDidRotate")
 
     var currentFile: URL? {
         currentFiles.values.first
@@ -129,6 +131,7 @@ class WallpaperManager {
                 }
             }
         }
+        NotificationCenter.default.post(name: WallpaperManager.didRotateNotification, object: nil)
     }
 
     func setFolder(url: URL) {
@@ -151,6 +154,7 @@ class WallpaperManager {
                     self?.createAllPlayers()
                     self?.startKeepVisibleTimer()
                     self?.startRotationTimer()
+                    NotificationCenter.default.post(name: WallpaperManager.didRotateNotification, object: nil)
                 }
             }
         } catch {
@@ -283,6 +287,7 @@ class WallpaperManager {
 
     func setWallpaper(url: URL) {
         stopAll()
+        SettingsManager.shared.isFolderMode = false
         SettingsManager.shared.wallpaperPath = url.path
         for screen in NSScreen.screens {
             let id = SettingsManager.screenIdentifier(screen)
@@ -300,6 +305,7 @@ class WallpaperManager {
         players[id]?.cleanup()
         players.removeValue(forKey: id)
 
+        SettingsManager.shared.isFolderMode = false
         SettingsManager.shared.setWallpaper(path: url.path, for: screen)
         currentFiles[id] = url
 
@@ -333,10 +339,13 @@ class WallpaperManager {
 
     func stopAll() {
         stopKeepVisibleTimer()
+        stopRotationTimer()
         players.values.forEach { $0.cleanup() }
         players.removeAll()
         currentFiles.removeAll()
         pausedScreens.removeAll()
+        playlist.removeAll()
+        currentPlaylistIndex = 0
     }
 
     func stopWallpaper(for screen: NSScreen) {

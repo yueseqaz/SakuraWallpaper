@@ -18,8 +18,16 @@ class ThumbnailItem: NSCollectionViewItem {
         self.view.addSubview(thumbnailImageView)
     }
     
-    func configure(with url: URL) {
+    func configure(with url: URL, isActive: Bool) {
         thumbnailImageView.image = nil
+        
+        if isActive {
+            self.view.layer?.borderWidth = 3
+            self.view.layer?.borderColor = NSColor.systemBlue.cgColor
+        } else {
+            self.view.layer?.borderWidth = 0
+        }
+
         let type = MediaType.detect(url)
         if type == .image {
             DispatchQueue.global(qos: .userInitiated).async {
