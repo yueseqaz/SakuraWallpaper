@@ -17,10 +17,11 @@
 "ui.chooseWallpaper" = "选择壁纸";
 "ui.selectFile" = "选择文件";
 "ui.selectFolder" = "选择文件夹";
-"ui.stopWallpaper" = "停止壁纸";
+"ui.stopWallpaper" = "清除壁纸";
 "ui.noWallpaper" = "未选择壁纸";
-"ui.active" = "运行中";
-"ui.inactive" = "未激活";
+"ui.playing" = "正在播放";
+"ui.paused" = "已暂停";
+"ui.notSet" = "未设置";
 "ui.launchAtLogin" = "开机自启动";
 "ui.pauseWhenInvisible" = "自动暂停 (省电模式)";
 "ui.rotationInterval" = "轮播间隔";

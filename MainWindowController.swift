@@ -558,9 +558,15 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
                 fileTypeLabel.stringValue = type == .video ? "ui.video".localized : "ui.image".localized
             }
 
-            statusIndicator.layer?.backgroundColor = NSColor.systemGreen.cgColor
-            statusLabel.stringValue = "ui.active".localized
-            statusLabel.textColor = .systemGreen
+            if wallpaperManager.isPaused || (SettingsManager.shared.pauseWhenInvisible && wallpaperManager.isPausedInternally) {
+                statusIndicator.layer?.backgroundColor = NSColor.systemYellow.cgColor
+                statusLabel.stringValue = "ui.paused".localized
+                statusLabel.textColor = .systemYellow
+            } else {
+                statusIndicator.layer?.backgroundColor = NSColor.systemGreen.cgColor
+                statusLabel.stringValue = "ui.playing".localized
+                statusLabel.textColor = .systemGreen
+            }
 
             showPreview(url: url, type: type)
         } else {
@@ -568,7 +574,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
             fileTypeLabel.stringValue = ""
 
             statusIndicator.layer?.backgroundColor = NSColor.tertiaryLabelColor.cgColor
-            statusLabel.stringValue = "ui.inactive".localized
+            statusLabel.stringValue = "ui.notSet".localized
             statusLabel.textColor = .secondaryLabelColor
 
             dropZone.isHidden = false

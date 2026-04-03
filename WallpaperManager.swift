@@ -79,7 +79,7 @@ class WallpaperManager {
         }
     }
 
-    private var isPausedInternally: Bool = false
+    public private(set) var isPausedInternally: Bool = false
 
     private func stopRotationTimer() {
         rotationTimer?.invalidate()

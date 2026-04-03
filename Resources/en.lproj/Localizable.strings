@@ -17,10 +17,11 @@
 "ui.chooseWallpaper" = "Choose Wallpaper";
 "ui.selectFile" = "Select File";
 "ui.selectFolder" = "Select Folder";
-"ui.stopWallpaper" = "Stop Wallpaper";
+"ui.stopWallpaper" = "Clear Wallpaper";
 "ui.noWallpaper" = "No wallpaper selected";
-"ui.active" = "Active";
-"ui.inactive" = "Inactive";
+"ui.playing" = "Playing";
+"ui.paused" = "Paused";
+"ui.notSet" = "No Wallpaper";
 "ui.launchAtLogin" = "Launch at Login";
 "ui.pauseWhenInvisible" = "Auto-Pause (Battery Saver)";
 "ui.rotationInterval" = "Rotation Interval";
