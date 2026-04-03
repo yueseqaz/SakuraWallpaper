@@ -441,6 +441,8 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
                 throw WallpaperError.unsupportedFormat
             }
             SettingsManager.shared.isFolderMode = false
+            SettingsManager.shared.isRotationEnabled = false
+            SettingsManager.shared.isShuffleMode = false
 
             if let screen = selectedScreen {
                 wallpaperManager.setWallpaper(url: url, for: screen)

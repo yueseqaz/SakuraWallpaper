@@ -181,6 +181,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if isDir.boolValue {
             wallpaperManager.setFolder(url: url)
         } else {
+            SettingsManager.shared.isRotationEnabled = false
+            SettingsManager.shared.isShuffleMode = false
             wallpaperManager.setWallpaper(url: url)
             SettingsManager.shared.wallpaperPath = path
             SettingsManager.shared.isFolderMode = false
