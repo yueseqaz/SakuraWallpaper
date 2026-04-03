@@ -3,7 +3,7 @@ import AVFoundation
 import AVKit
 import CoreGraphics
 
-class MainWindowController: NSWindowController, NSCollectionViewDataSource {
+class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCollectionViewDelegate {
     let wallpaperManager: WallpaperManager
 
     private var previewImageView: NSImageView!
@@ -20,6 +20,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource {
     private var selectFolderButton: NSButton!
     private var launchSwitch: NSButton!
     private var pauseSwitch: NSButton!
+    private var shuffleSwitch: NSButton!
     private var intervalField: NSTextField!
     private var intervalStepper: NSStepper!
     private var intervalLabel: NSTextField!
@@ -224,6 +225,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource {
         collectionView = NSCollectionView()
         collectionView.collectionViewLayout = layout
         collectionView.isSelectable = true
+        collectionView.delegate = self
         collectionView.register(ThumbnailItem.self, forItemWithIdentifier: ThumbnailItem.identifier)
         collectionView.dataSource = self
 
@@ -285,16 +287,23 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource {
         launchSwitch = NSButton(checkboxWithTitle: "ui.launchAtLogin".localized,
                                 target: self, action: #selector(launchSwitchChanged))
         launchSwitch.font = NSFont.systemFont(ofSize: 12)
-        launchSwitch.frame = NSRect(x: 0, y: 70, width: 150, height: 20)
+        launchSwitch.frame = NSRect(x: 0, y: 70, width: 120, height: 20)
         launchSwitch.state = SettingsManager.shared.launchAtLogin ? .on : .off
         settings.addSubview(launchSwitch)
 
         pauseSwitch = NSButton(checkboxWithTitle: "ui.pauseWhenInvisible".localized,
                                target: self, action: #selector(pauseSwitchChanged))
         pauseSwitch.font = NSFont.systemFont(ofSize: 12)
-        pauseSwitch.frame = NSRect(x: 160, y: 70, width: 200, height: 20)
+        pauseSwitch.frame = NSRect(x: 130, y: 70, width: 160, height: 20)
         pauseSwitch.state = SettingsManager.shared.pauseWhenInvisible ? .on : .off
         settings.addSubview(pauseSwitch)
+
+        shuffleSwitch = NSButton(checkboxWithTitle: "ui.shuffleMode".localized,
+                                 target: self, action: #selector(shuffleSwitchChanged))
+        shuffleSwitch.font = NSFont.systemFont(ofSize: 12)
+        shuffleSwitch.frame = NSRect(x: 300, y: 70, width: 150, height: 20)
+        shuffleSwitch.state = SettingsManager.shared.isShuffleMode ? .on : .off
+        settings.addSubview(shuffleSwitch)
 
         intervalPrefix = NSTextField(labelWithString: "ui.rotationInterval".localized + ":")
         intervalPrefix.font = NSFont.systemFont(ofSize: 12)
@@ -445,6 +454,10 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource {
         SettingsManager.shared.pauseWhenInvisible = (sender.state == .on)
     }
 
+    @objc func shuffleSwitchChanged(_ sender: NSButton) {
+        SettingsManager.shared.isShuffleMode = (sender.state == .on)
+    }
+
     @objc func intervalFieldChanged(_ sender: NSTextField) {
         let val = max(1, sender.integerValue)
         sender.integerValue = val
@@ -489,8 +502,10 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource {
         let isFolderMode = SettingsManager.shared.isFolderMode
         intervalField.isEnabled = isFolderMode
         intervalStepper.isEnabled = isFolderMode
+        shuffleSwitch.isEnabled = isFolderMode
         intervalPrefix.textColor = isFolderMode ? .labelColor : .disabledControlTextColor
         intervalLabel.textColor = isFolderMode ? .secondaryLabelColor : .disabledControlTextColor
+        shuffleSwitch.contentTintColor = isFolderMode ? nil : .disabledControlTextColor
 
         var wallpaperPath: String?
         if let screen = selectedScreen {
@@ -589,6 +604,12 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource {
         previewImageView.image = nil
         scrollView.isHidden = true
     }
+    func collectionView(_ collectionView: NSCollectionView, didSelectItemsAt indexPaths: Set<IndexPath>) {
+        if let indexPath = indexPaths.first {
+            wallpaperManager.selectPlaylistItem(at: indexPath.item)
+        }
+    }
+
     func collectionView(_ collectionView: NSCollectionView, numberOfItemsInSection section: Int) -> Int {
         return wallpaperManager.playlist.count
     }

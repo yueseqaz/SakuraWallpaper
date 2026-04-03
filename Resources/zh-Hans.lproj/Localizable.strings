@@ -24,7 +24,8 @@
 "ui.launchAtLogin" = "开机自启动";
 "ui.pauseWhenInvisible" = "不可见时暂停";
 "ui.rotationInterval" = "轮播间隔";
-"ui.folderMode" = "文件夹模式";
+"ui.folderMode" = "轮播模式";
+"ui.shuffleMode" = "随机轮播";
 "ui.minutes" = "分钟";
 "ui.hour" = "小时";
 "ui.hours" = "小时";

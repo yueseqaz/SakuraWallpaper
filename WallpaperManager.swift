@@ -108,7 +108,13 @@ class WallpaperManager {
 
     @objc func nextWallpaper() {
         guard !playlist.isEmpty else { return }
-        currentPlaylistIndex = (currentPlaylistIndex + 1) % playlist.count
+        
+        if SettingsManager.shared.isShuffleMode {
+            currentPlaylistIndex = Int.random(in: 0..<playlist.count)
+        } else {
+            currentPlaylistIndex = (currentPlaylistIndex + 1) % playlist.count
+        }
+        
         let nextURL = playlist[currentPlaylistIndex]
         
         for screen in NSScreen.screens {
@@ -122,6 +128,33 @@ class WallpaperManager {
                 }
             } else {
                 // Fallback if player doesn't exist for some reason
+                let player = ScreenPlayer(fileURL: nextURL, screen: screen)
+                player.setVolume(0)
+                players[id] = player
+                if isPaused || isPausedInternally {
+                    player.pausePlayback()
+                    player.window?.orderOut(nil)
+                }
+            }
+        }
+        NotificationCenter.default.post(name: WallpaperManager.didRotateNotification, object: nil)
+    }
+
+    func selectPlaylistItem(at index: Int) {
+        guard index >= 0 && index < playlist.count else { return }
+        currentPlaylistIndex = index
+        let nextURL = playlist[currentPlaylistIndex]
+        
+        for screen in NSScreen.screens {
+            let id = SettingsManager.screenIdentifier(screen)
+            currentFiles[id] = nextURL
+            
+            if let player = players[id] {
+                player.updateMedia(url: nextURL)
+                if isPaused || isPausedInternally {
+                    player.pausePlayback()
+                }
+            } else {
                 let player = ScreenPlayer(fileURL: nextURL, screen: screen)
                 player.setVolume(0)
                 players[id] = player
