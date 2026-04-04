@@ -73,9 +73,10 @@ class ScreenPlayer {
     private func setupVideoPlayer() {
         let item = AVPlayerItem(asset: AVURLAsset(url: fileURL))
         avPlayer = AVPlayer(playerItem: item)
-        avPlayer?.isMuted = false
+        avPlayer?.isMuted = true
         avPlayer?.volume = 0
-        avPlayer?.preventsDisplaySleepDuringVideoPlayback = true
+        avPlayer?.automaticallyWaitsToMinimizeStalling = false
+        avPlayer?.preventsDisplaySleepDuringVideoPlayback = false
 
         playerLayer = AVPlayerLayer(player: avPlayer)
         playerLayer?.videoGravity = .resizeAspectFill

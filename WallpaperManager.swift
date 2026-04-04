@@ -45,6 +45,38 @@ class WallpaperManager {
             name: NSWorkspace.didActivateApplicationNotification,
             object: nil
         )
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(handleSleep),
+            name: NSWorkspace.willSleepNotification,
+            object: nil
+        )
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(handleSleep),
+            name: NSWorkspace.screensDidSleepNotification,
+            object: nil
+        )
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(checkPlaybackState),
+            name: NSWorkspace.didWakeNotification,
+            object: nil
+        )
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(checkPlaybackState),
+            name: NSWorkspace.screensDidWakeNotification,
+            object: nil
+        )
+    }
+
+    @objc private func handleSleep() {
+        if !isPausedInternally {
+            isPausedInternally = true
+            pauseAll()
+            NotificationCenter.default.post(name: WallpaperManager.playbackStateDidChangeNotification, object: nil)
+        }
     }
 
     deinit {
