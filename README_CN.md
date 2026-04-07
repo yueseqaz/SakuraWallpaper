@@ -24,11 +24,8 @@ macOS 轻量级视频和图片壁纸应用。
 ![主窗口](img/Sakurawallpaper1.jpeg)
 
 ![状态栏菜单](img/Sakurawallpaper2.jpeg)
-## 🎬 Preview
 
 ![SakuraWallpaper Demo](img/video.gif)
-
-👉 Full demo video: https://youtu.be/xxxx
 
 ## 支持格式
 
