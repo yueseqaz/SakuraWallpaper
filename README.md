@@ -104,6 +104,7 @@ SakuraWallpaper/
 ├── SettingsManager.swift      # User preferences storage
 ├── Localization.swift         # Localization helper
 ├── MediaType.swift            # File type detection
+├── ThumbnailItem.swift        # Collection view item for previews
 ├── AboutWindowController.swift # About window
 ├── main.swift                 # Entry point
 ├── build.sh                   # Build script

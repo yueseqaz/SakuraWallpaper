@@ -108,6 +108,7 @@ SakuraWallpaper/
 ├── SettingsManager.swift      # 用户偏好设置存储
 ├── Localization.swift         # 本地化辅助
 ├── MediaType.swift            # 文件类型检测
+├── ThumbnailItem.swift        # 预览网格项
 ├── AboutWindowController.swift # 关于窗口
 ├── main.swift                 # 入口文件
 ├── build.sh                   # 构建脚本
