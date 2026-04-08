@@ -43,6 +43,10 @@ macOS 轻量级视频和图片壁纸应用。
 ### 下载安装
 
 从 [Releases](../../releases) 下载最新的 `SakuraWallpaper.dmg`，将 SakuraWallpaper 拖入应用程序文件夹。
+或者
+```
+brew install --cask yueseqaz/tap/sakura-wallpaper
+```
 
 ### 从源码构建
 

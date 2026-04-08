@@ -43,6 +43,10 @@ A lightweight video and image wallpaper application for macOS.
 ### Download
 
 Download the latest `SakuraWallpaper.dmg` from [Releases](../../releases) and drag SakuraWallpaper to Applications folder.
+OR
+```
+brew install --cask yueseqaz/tap/sakura-wallpaper
+```
 
 ### Build from Source
 
