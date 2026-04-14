@@ -552,6 +552,12 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         if let screen = selectedScreen, var config = SettingsManager.shared.folderConfig(for: screen) {
             config.includeSubfolders = (sender.state == .on)
             wallpaperManager.setFolder(url: URL(fileURLWithPath: config.folderPath), for: screen, config: config)
+        } else if selectedScreen == nil, !SettingsManager.shared.screenFolderConfigs.isEmpty {
+            for screen in NSScreen.screens {
+                guard var config = SettingsManager.shared.folderConfig(for: screen) else { continue }
+                config.includeSubfolders = (sender.state == .on)
+                wallpaperManager.setFolder(url: URL(fileURLWithPath: config.folderPath), for: screen, config: config)
+            }
         } else if SettingsManager.shared.isFolderMode, let path = SettingsManager.shared.folderPath {
             wallpaperManager.setFolder(url: URL(fileURLWithPath: path))
         }
@@ -564,6 +570,13 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
             config.isShuffleMode = (sender.state == .on)
             SettingsManager.shared.setFolderConfig(config, for: screen)
             wallpaperManager.startRotationTimer()
+        } else if selectedScreen == nil, !SettingsManager.shared.screenFolderConfigs.isEmpty {
+            for screen in NSScreen.screens {
+                guard var config = SettingsManager.shared.folderConfig(for: screen) else { continue }
+                config.isShuffleMode = (sender.state == .on)
+                SettingsManager.shared.setFolderConfig(config, for: screen)
+            }
+            wallpaperManager.startRotationTimer()
         }
         updateUI()
     }
@@ -573,6 +586,12 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         if let screen = selectedScreen, var config = SettingsManager.shared.folderConfig(for: screen) {
             config.isRotationEnabled = (sender.state == .on)
             SettingsManager.shared.setFolderConfig(config, for: screen)
+        } else if selectedScreen == nil, !SettingsManager.shared.screenFolderConfigs.isEmpty {
+            for screen in NSScreen.screens {
+                guard var config = SettingsManager.shared.folderConfig(for: screen) else { continue }
+                config.isRotationEnabled = (sender.state == .on)
+                SettingsManager.shared.setFolderConfig(config, for: screen)
+            }
         }
         if sender.state == .on {
             wallpaperManager.startRotationTimer()
@@ -603,8 +622,14 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         if let screen = selectedScreen, var config = SettingsManager.shared.folderConfig(for: screen) {
             config.rotationIntervalMinutes = minutes
             SettingsManager.shared.setFolderConfig(config, for: screen)
+        } else if selectedScreen == nil, !SettingsManager.shared.screenFolderConfigs.isEmpty {
+            for screen in NSScreen.screens {
+                guard var config = SettingsManager.shared.folderConfig(for: screen) else { continue }
+                config.rotationIntervalMinutes = minutes
+                SettingsManager.shared.setFolderConfig(config, for: screen)
+            }
         }
-        if SettingsManager.shared.isFolderMode && SettingsManager.shared.isRotationEnabled {
+        if SettingsManager.shared.isFolderMode || !SettingsManager.shared.screenFolderConfigs.isEmpty {
             wallpaperManager.startRotationTimer()
         }
     }
@@ -883,11 +908,19 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     func collectionView(_ collectionView: NSCollectionView, didSelectItemsAt indexPaths: Set<IndexPath>) {
         if let indexPath = indexPaths.first {
             // Stop rotation when user manually picks a wallpaper
-            if SettingsManager.shared.isRotationEnabled {
+            let hasPerScreenConfig = selectedScreen.flatMap { SettingsManager.shared.folderConfig(for: $0) } != nil
+            let shouldStopRotation = hasPerScreenConfig ? true : SettingsManager.shared.isRotationEnabled
+            if shouldStopRotation {
                 SettingsManager.shared.isRotationEnabled = false
                 if let screen = selectedScreen, var config = SettingsManager.shared.folderConfig(for: screen) {
                     config.isRotationEnabled = false
                     SettingsManager.shared.setFolderConfig(config, for: screen)
+                } else if selectedScreen == nil, !SettingsManager.shared.screenFolderConfigs.isEmpty {
+                    for screen in NSScreen.screens {
+                        guard var config = SettingsManager.shared.folderConfig(for: screen) else { continue }
+                        config.isRotationEnabled = false
+                        SettingsManager.shared.setFolderConfig(config, for: screen)
+                    }
                 }
                 wallpaperManager.startRotationTimer() // This will stop it because of the guard
             }

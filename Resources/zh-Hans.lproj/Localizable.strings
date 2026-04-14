@@ -67,6 +67,7 @@
 // Menu
 "menu.open" = "打开 SakuraWallpaper";
 "menu.status" = "状态: %@";
+"menu.status.perScreen" = "分屏轮播";
 "menu.status.rotating" = "轮播中: %@";
 "menu.status.file" = "当前文件: %@";
 "menu.pause" = "暂停";

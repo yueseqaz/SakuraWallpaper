@@ -181,6 +181,21 @@ class WallpaperManager {
         }
     }
 
+    func nextWallpaper(for screen: NSScreen) {
+        let id = SettingsManager.screenIdentifier(screen)
+        nextWallpaper(forScreenID: id)
+    }
+
+    func canGoNextWallpaper(for screen: NSScreen) -> Bool {
+        let id = SettingsManager.screenIdentifier(screen)
+        guard let list = playlistsByScreen[id] else { return false }
+        return !list.isEmpty
+    }
+
+    var hasAnyNextWallpaperTarget: Bool {
+        playlistsByScreen.values.contains { !$0.isEmpty }
+    }
+
     func selectPlaylistItem(at index: Int) {
         if let id = uiScreenID {
             selectPlaylistItem(at: index, forScreenID: id)
@@ -362,7 +377,6 @@ class WallpaperManager {
         players[id]?.cleanup()
         players.removeValue(forKey: id)
 
-        SettingsManager.shared.isFolderMode = false
         SettingsManager.shared.setWallpaper(path: url.path, for: screen)
         currentFiles[id] = url
 

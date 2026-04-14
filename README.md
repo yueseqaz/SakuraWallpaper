@@ -2,6 +2,7 @@
 # SakuraWallpaper
 
 A lightweight video and image wallpaper application for macOS.
+Current version: `v1.0.1`
 
 [Chinese Documentation](README_CN.md)
 
@@ -9,9 +10,10 @@ A lightweight video and image wallpaper application for macOS.
 
 - Set videos (MP4, MOV, GIF) or images (PNG, JPG, HEIC, WebP) as desktop wallpaper
 - **Rotation Mode**: Select a folder to automatically cycle through wallpapers
+- **Per-Screen Independent Rotation**: Each display can keep its own folder path, playlist, interval, and shuffle state
 - **Playlist Previews**: Interactive grid view with live previews of the currently selected item
 - **Shuffle Mode**: Randomize wallpaper rotation order
-- **Battery Saver**: Automatically pauses wallpaper playback when battery level is at or below 20% and not charging
+- **Low Battery Auto Pause**: Automatically pauses wallpaper playback when battery level is at or below 20% and not charging
 - Multi-display support with independent wallpaper per screen
 - Video wallpaper with automatic loop playback
 - Recent wallpapers history for quick switching (Supports folders)
@@ -70,13 +72,18 @@ Requirements: macOS 12.0+, Xcode Command Line Tools
 7. Click **Clear** to remove wallpaper from the selected screen
 8. Right-click the status bar icon for quick controls
 
+### Battery Saver Behavior
+
+- When enabled, wallpapers auto-pause only if battery is `<=20%` and the Mac is not charging
+- This auto-pause is different from manual pause in the menu
+
 ### Status Bar Menu
 
 - **Open SakuraWallpaper** - Open main window
-- **Status: Live/Paused/None** - Real-time informational readout
+- **Status: Live/Manually Paused/Low Battery Auto Paused/None** - Real-time informational readout
 - **Pause Playback** - Manual toggle for all wallpapers
-- **Battery Saver** - Pause automatically when battery is low (<=20%) and not charging
-- **Next Wallpaper** (Shortcut: `n`) - Skip to the next item in the rotation
+- **Battery Saver** - Enable low-battery auto pause (<=20% and not charging)
+- **Next Wallpaper** - Includes `All Screens` plus per-screen next actions (shortcut `n` applies to all screens)
 - **Clear Wallpaper** - Reset and remove current selection
 - **Per-Screen Pause** - Pause/resume individual screens
 - **Recent** - Quick switch to previous wallpapers or folders

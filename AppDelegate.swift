@@ -10,6 +10,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var pauseItem: NSMenuItem!
     var autoPauseItem: NSMenuItem!
     var nextMenuItem: NSMenuItem!
+    var nextWallpaperMenu: NSMenu!
     var screenPauseMenu: NSMenu!
     var languageMenu: NSMenu!
 
@@ -19,28 +20,38 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupStatusBar()
 
         let screenFolderConfigs = SettingsManager.shared.screenFolderConfigs
-        if !screenFolderConfigs.isEmpty {
-            for screen in NSScreen.screens {
-                let id = SettingsManager.screenIdentifier(screen)
-                guard let config = screenFolderConfigs[id],
-                      FileManager.default.fileExists(atPath: config.folderPath) else { continue }
+        let globalURL = SettingsManager.shared.wallpaperURL
+        let globalFolderURL = SettingsManager.shared.folderPath.map { URL(fileURLWithPath: $0) }
+
+        var restoredAny = false
+        for screen in NSScreen.screens {
+            let id = SettingsManager.screenIdentifier(screen)
+
+            if let config = screenFolderConfigs[id],
+               FileManager.default.fileExists(atPath: config.folderPath) {
                 wallpaperManager.setFolder(url: URL(fileURLWithPath: config.folderPath), for: screen, config: config)
+                restoredAny = true
+                continue
             }
-        } else if SettingsManager.shared.isFolderMode,
-           let folderPath = SettingsManager.shared.folderPath,
-           FileManager.default.fileExists(atPath: folderPath) {
-            let url = URL(fileURLWithPath: folderPath)
-            wallpaperManager.setFolder(url: url)
-        } else if SettingsManager.shared.hasScreenWallpapers {
-            for screen in NSScreen.screens {
-                if let url = SettingsManager.shared.wallpaperURL(for: screen),
-                   FileManager.default.fileExists(atPath: url.path) {
-                    wallpaperManager.setWallpaper(url: url, for: screen)
-                }
+
+            if let screenURL = SettingsManager.shared.wallpaperURL(for: screen),
+               FileManager.default.fileExists(atPath: screenURL.path) {
+                wallpaperManager.setWallpaper(url: screenURL, for: screen)
+                restoredAny = true
+                continue
             }
-        } else if let url = SettingsManager.shared.wallpaperURL,
-                  FileManager.default.fileExists(atPath: url.path) {
-            wallpaperManager.setWallpaper(url: url)
+
+            if let url = globalURL, FileManager.default.fileExists(atPath: url.path) {
+                wallpaperManager.setWallpaper(url: url, for: screen)
+                restoredAny = true
+            }
+        }
+
+        if !restoredAny,
+           SettingsManager.shared.isFolderMode,
+           let folderURL = globalFolderURL,
+           FileManager.default.fileExists(atPath: folderURL.path) {
+            wallpaperManager.setFolder(url: folderURL)
         }
 
         mainWindow.runOnboardingIfNeeded()
@@ -72,8 +83,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         pauseItem.target = self
         menu.addItem(pauseItem)
 
-        nextMenuItem = NSMenuItem(title: "menu.nextWallpaper".localized, action: #selector(nextWallpaper), keyEquivalent: "n")
-        nextMenuItem.target = self
+        nextWallpaperMenu = NSMenu(title: "menu.nextWallpaper".localized)
+        nextMenuItem = NSMenuItem(title: "menu.nextWallpaper".localized, action: nil, keyEquivalent: "")
+        nextMenuItem.submenu = nextWallpaperMenu
         menu.addItem(nextMenuItem)
 
         let stopItem = NSMenuItem(title: "menu.stopWallpaper".localized, action: #selector(stopWallpaper), keyEquivalent: "s")
@@ -213,6 +225,30 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    private func rebuildNextWallpaperMenu() {
+        nextWallpaperMenu.removeAllItems()
+
+        let allItem = NSMenuItem(title: "ui.allScreens".localized, action: #selector(nextWallpaperAllScreens), keyEquivalent: "n")
+        allItem.target = self
+        allItem.isEnabled = wallpaperManager.hasAnyNextWallpaperTarget
+        nextWallpaperMenu.addItem(allItem)
+        nextWallpaperMenu.addItem(.separator())
+
+        for (index, screen) in NSScreen.screens.enumerated() {
+            let displayName: String
+            if #available(macOS 10.15, *) {
+                displayName = screen.localizedName
+            } else {
+                displayName = "screen.display".localized(index + 1)
+            }
+            let item = NSMenuItem(title: displayName, action: #selector(nextWallpaperForScreen(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = screen
+            item.isEnabled = wallpaperManager.canGoNextWallpaper(for: screen)
+            nextWallpaperMenu.addItem(item)
+        }
+    }
+
     private func rebuildLanguageMenu() {
         languageMenu.removeAllItems()
         let currentLanguage = SettingsManager.shared.language
@@ -314,9 +350,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             
             let hasScreenFolders = !SettingsManager.shared.screenFolderConfigs.isEmpty
             let isRotating = (SettingsManager.shared.isFolderMode && SettingsManager.shared.isRotationEnabled) || hasScreenFolders
-            let shuffleIcon = (isRotating && SettingsManager.shared.isShuffleMode) ? "🔀 " : ""
+            let shuffleIcon = (isRotating && SettingsManager.shared.isShuffleMode && !hasScreenFolders) ? "🔀 " : ""
             
-            if isRotating, let folderPath = SettingsManager.shared.folderPath {
+            if hasScreenFolders {
+                statusMenuItem.title = "menu.status".localized("menu.status.perScreen".localized) + " (\(stateLabel))"
+            } else if isRotating, let folderPath = SettingsManager.shared.folderPath {
                 let folderName = (folderPath as NSString).lastPathComponent
                 statusMenuItem.title = "\(shuffleIcon)\("menu.status.rotating".localized(folderName)) (\(stateLabel))"
             } else if let url = wallpaperManager.currentFile {
@@ -342,13 +380,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.terminate(nil)
     }
 
-    @objc func nextWallpaper() {
+    @objc func nextWallpaperAllScreens() {
         wallpaperManager.nextWallpaper()
     }
 
+    @objc func nextWallpaperForScreen(_ sender: NSMenuItem) {
+        guard let screen = sender.representedObject as? NSScreen else { return }
+        wallpaperManager.nextWallpaper(for: screen)
+    }
+
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-        if menuItem.action == #selector(nextWallpaper) {
-            return SettingsManager.shared.isFolderMode || !SettingsManager.shared.screenFolderConfigs.isEmpty
+        if menuItem.action == #selector(nextWallpaperAllScreens) {
+            return wallpaperManager.hasAnyNextWallpaperTarget
+        }
+        if menuItem.action == #selector(nextWallpaperForScreen(_:)) {
+            if let screen = menuItem.representedObject as? NSScreen {
+                return wallpaperManager.canGoNextWallpaper(for: screen)
+            }
+            return false
         }
         return true
     }
@@ -358,14 +407,9 @@ extension AppDelegate: NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
         rebuildRecentMenu()
         rebuildScreenPauseMenu()
+        rebuildNextWallpaperMenu()
         rebuildLanguageMenu()
         updatePauseItem()
         updateAutoPauseItem()
-        
-        if SettingsManager.shared.isFolderMode || !SettingsManager.shared.screenFolderConfigs.isEmpty {
-            nextMenuItem.title = "menu.nextWallpaper".localized
-        } else {
-            nextMenuItem.title = "\("menu.nextWallpaper".localized) (\("ui.folderMode".localized) \("ui.notSet".localized))"
-        }
     }
 }
