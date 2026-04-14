@@ -1,6 +1,6 @@
 import Foundation
 
-enum MediaType {
+enum MediaType: Equatable {
     case video, image, unsupported
 
     static func detect(_ url: URL) -> MediaType {

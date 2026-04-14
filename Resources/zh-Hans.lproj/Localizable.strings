@@ -22,6 +22,8 @@
 "ui.status" = "状态: %@";
 "ui.playing" = "正在运行";
 "ui.paused" = "已暂停";
+"ui.pausedManual" = "已暂停（手动）";
+"ui.pausedAuto" = "已暂停（省电模式）";
 "ui.notSet" = "无";
 "ui.launchAtLogin" = "开机自启动";
 "ui.pauseWhenInvisible" = "省电模式";
@@ -29,6 +31,7 @@
 "ui.enableRotation" = "开启轮播";
 "ui.folderMode" = "轮播模式";
 "ui.shuffleMode" = "随机轮播";
+"ui.includeSubfolders" = "包含子文件夹";
 "ui.minutes" = "分钟";
 "ui.hour" = "小时";
 "ui.hours" = "小时";
@@ -39,7 +42,27 @@
 "ui.image" = "图片";
 "ui.dropHere" = "拖拽或选择壁纸";
 "ui.formats" = "支持 MP4, MOV, GIF, PNG, JPG, WebP";
+"ui.loadingPreview" = "正在加载预览...";
+"ui.folderItems" = "文件数量: %d（%@）";
+"ui.recursiveEnabled" = "递归扫描";
+"ui.recursiveDisabled" = "仅当前文件夹";
 "ui.madeBy" = "由 sakura 用 %@ 制作";
+
+// Onboarding
+"onboarding.step1.title" = "第 1 步：选择壁纸";
+"onboarding.step1.message" = "先选择单个文件或文件夹开始使用。";
+"onboarding.step2.title" = "第 2 步：设置轮播间隔";
+"onboarding.step2.message" = "在文件夹模式下，多久切换一次壁纸？";
+"onboarding.step3.title" = "第 3 步：开机启动";
+"onboarding.step3.message" = "开启后将随 macOS 自动启动。";
+"onboarding.pickFile" = "选择文件";
+"onboarding.pickFolder" = "选择文件夹";
+"onboarding.skip" = "稍后设置";
+"onboarding.interval5" = "每 5 分钟";
+"onboarding.interval15" = "每 15 分钟";
+"onboarding.interval30" = "每 30 分钟";
+"onboarding.enable" = "开启";
+"onboarding.notNow" = "暂不开启";
 
 // Menu
 "menu.open" = "打开 SakuraWallpaper";

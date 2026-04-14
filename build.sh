@@ -14,15 +14,18 @@ echo "Compiling..."
 swiftc -o "$APP_DIR/Contents/MacOS/$APP_NAME" \
     SettingsManager.swift \
     MediaType.swift \
+    PlaylistBuilder.swift \
     Localization.swift \
+    PerformanceMonitor.swift \
     ScreenPlayer.swift \
     WallpaperManager.swift \
     MainWindowController.swift \
     ThumbnailItem.swift \
+    ThumbnailProvider.swift \
     AboutWindowController.swift \
     AppDelegate.swift \
     main.swift \
-    -framework Cocoa -framework AVKit -framework AVFoundation -framework ServiceManagement
+    -framework Cocoa -framework AVKit -framework AVFoundation -framework ServiceManagement -framework ImageIO
 
 # 复制资源
 cp -R Resources "$APP_DIR/Contents/"

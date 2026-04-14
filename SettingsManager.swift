@@ -5,7 +5,7 @@ import Cocoa
 class SettingsManager {
     static let shared = SettingsManager()
 
-    private let defaults = UserDefaults.standard
+    private let defaults: UserDefaults
     private let wallpaperKey = "sakurawallpaper_wallpaper_path"
     private let launchKey    = "sakurawallpaper_launch_at_login"
     private let pauseWhenInvisibleKey = "sakurawallpaper_pause_when_invisible"
@@ -17,6 +17,12 @@ class SettingsManager {
     private let rotationIntervalMinutesKey = "sakurawallpaper_rotation_interval_minutes"
     private let isShuffleModeKey = "sakurawallpaper_is_shuffle_mode"
     private let isRotationEnabledKey = "sakurawallpaper_is_rotation_enabled"
+    private let includeSubfoldersKey = "sakurawallpaper_include_subfolders"
+    private let onboardingCompletedKey = "sakurawallpaper_onboarding_completed"
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
 
     var wallpaperPath: String? {
         get { defaults.string(forKey: wallpaperKey) }
@@ -58,6 +64,16 @@ class SettingsManager {
             return defaults.bool(forKey: isRotationEnabledKey)
         }
         set { defaults.set(newValue, forKey: isRotationEnabledKey) }
+    }
+
+    var includeSubfolders: Bool {
+        get { defaults.bool(forKey: includeSubfoldersKey) }
+        set { defaults.set(newValue, forKey: includeSubfoldersKey) }
+    }
+
+    var onboardingCompleted: Bool {
+        get { defaults.bool(forKey: onboardingCompletedKey) }
+        set { defaults.set(newValue, forKey: onboardingCompletedKey) }
     }
 
     var launchAtLogin: Bool {
@@ -119,6 +135,13 @@ class SettingsManager {
 
     var hasScreenWallpapers: Bool {
         !screenWallpapers.isEmpty
+    }
+
+    var hasExistingSetup: Bool {
+        if wallpaperPath != nil { return true }
+        if folderPath != nil { return true }
+        if hasScreenWallpapers { return true }
+        return !wallpaperHistory.isEmpty
     }
 
     var language: String {

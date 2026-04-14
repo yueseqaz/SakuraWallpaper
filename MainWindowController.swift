@@ -11,6 +11,9 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private var previewPlayer: AVPlayer?
     private var previewEndObserver: Any?
     private var previewContainer: NSView!
+    private var previewLoadingOverlay: NSView!
+    private var previewLoadingSpinner: NSProgressIndicator!
+    private var previewLoadingLabel: NSTextField!
     private var fileNameLabel: NSTextField!
     private var fileTypeLabel: NSTextField!
     private var statusIndicator: NSView!
@@ -23,10 +26,12 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private var pauseSwitch: NSButton!
     private var rotationSwitch: NSButton!
     private var shuffleSwitch: NSButton!
+    private var includeSubfoldersSwitch: NSButton!
     private var intervalField: NSTextField!
     private var intervalStepper: NSStepper!
     private var intervalLabel: NSTextField!
     private var intervalPrefix: NSTextField!
+    private var folderCountLabel: NSTextField!
     private var collectionView: NSCollectionView!
     private var scrollView: NSScrollView!
     private var dropZone: NSView!
@@ -256,6 +261,29 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         scrollView.drawsBackground = false
         previewContainer.addSubview(scrollView)
 
+        previewLoadingOverlay = NSView(frame: previewContainer.bounds)
+        previewLoadingOverlay.autoresizingMask = [.width, .height]
+        previewLoadingOverlay.wantsLayer = true
+        previewLoadingOverlay.layer?.backgroundColor = NSColor.windowBackgroundColor.withAlphaComponent(0.72).cgColor
+        previewLoadingOverlay.isHidden = true
+
+        previewLoadingSpinner = NSProgressIndicator(frame: NSRect(x: 0, y: 0, width: 20, height: 20))
+        previewLoadingSpinner.style = .spinning
+        previewLoadingSpinner.controlSize = .small
+        previewLoadingSpinner.frame.origin = NSPoint(x: (previewLoadingOverlay.bounds.width - 20) / 2, y: (previewLoadingOverlay.bounds.height - 20) / 2 + 10)
+        previewLoadingSpinner.autoresizingMask = [.minXMargin, .maxXMargin, .minYMargin, .maxYMargin]
+        previewLoadingOverlay.addSubview(previewLoadingSpinner)
+
+        previewLoadingLabel = NSTextField(labelWithString: "ui.loadingPreview".localized)
+        previewLoadingLabel.font = NSFont.systemFont(ofSize: 11, weight: .medium)
+        previewLoadingLabel.textColor = .secondaryLabelColor
+        previewLoadingLabel.alignment = .center
+        previewLoadingLabel.frame = NSRect(x: 0, y: previewLoadingSpinner.frame.minY - 24, width: previewLoadingOverlay.bounds.width, height: 18)
+        previewLoadingLabel.autoresizingMask = [.width, .minYMargin, .maxYMargin]
+        previewLoadingOverlay.addSubview(previewLoadingLabel)
+
+        previewContainer.addSubview(previewLoadingOverlay)
+
         return previewContainer
     }
 
@@ -321,23 +349,30 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         rotationSwitch = NSButton(checkboxWithTitle: "ui.enableRotation".localized,
                                   target: self, action: #selector(rotationSwitchChanged))
         rotationSwitch.font = NSFont.systemFont(ofSize: 12)
-        rotationSwitch.frame = NSRect(x: 0, y: 100, width: 120, height: 20)
+        rotationSwitch.frame = NSRect(x: 0, y: 104, width: 120, height: 20)
         rotationSwitch.state = SettingsManager.shared.isRotationEnabled ? .on : .off
         settings.addSubview(rotationSwitch)
 
         shuffleSwitch = NSButton(checkboxWithTitle: "ui.shuffleMode".localized,
                                  target: self, action: #selector(shuffleSwitchChanged))
         shuffleSwitch.font = NSFont.systemFont(ofSize: 12)
-        shuffleSwitch.frame = NSRect(x: 130, y: 100, width: 150, height: 20)
+        shuffleSwitch.frame = NSRect(x: 130, y: 104, width: 150, height: 20)
         shuffleSwitch.state = SettingsManager.shared.isShuffleMode ? .on : .off
         settings.addSubview(shuffleSwitch)
 
+        includeSubfoldersSwitch = NSButton(checkboxWithTitle: "ui.includeSubfolders".localized,
+                                           target: self, action: #selector(includeSubfoldersChanged))
+        includeSubfoldersSwitch.font = NSFont.systemFont(ofSize: 12)
+        includeSubfoldersSwitch.frame = NSRect(x: 0, y: 80, width: 180, height: 20)
+        includeSubfoldersSwitch.state = SettingsManager.shared.includeSubfolders ? .on : .off
+        settings.addSubview(includeSubfoldersSwitch)
+
         intervalPrefix = NSTextField(labelWithString: "ui.rotationInterval".localized + ":")
         intervalPrefix.font = NSFont.systemFont(ofSize: 12)
-        intervalPrefix.frame = NSRect(x: 0, y: 70, width: 120, height: 20)
+        intervalPrefix.frame = NSRect(x: 0, y: 52, width: 120, height: 20)
         settings.addSubview(intervalPrefix)
 
-        intervalField = NSTextField(frame: NSRect(x: 125, y: 70, width: 50, height: 22))
+        intervalField = NSTextField(frame: NSRect(x: 125, y: 52, width: 50, height: 22))
         intervalField.font = NSFont.systemFont(ofSize: 12)
         intervalField.alignment = .right
         intervalField.target = self
@@ -349,7 +384,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         intervalField.integerValue = SettingsManager.shared.rotationIntervalMinutes
         settings.addSubview(intervalField)
 
-        intervalStepper = NSStepper(frame: NSRect(x: 175, y: 70, width: 15, height: 22))
+        intervalStepper = NSStepper(frame: NSRect(x: 175, y: 52, width: 15, height: 22))
         intervalStepper.minValue = 1
         intervalStepper.maxValue = 1440
         intervalStepper.increment = 1
@@ -362,8 +397,14 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         intervalLabel = NSTextField(labelWithString: formatInterval(minutes: SettingsManager.shared.rotationIntervalMinutes))
         intervalLabel.font = NSFont.systemFont(ofSize: 11)
         intervalLabel.textColor = .secondaryLabelColor
-        intervalLabel.frame = NSRect(x: 200, y: 70, width: 250, height: 20)
+        intervalLabel.frame = NSRect(x: 200, y: 52, width: 250, height: 20)
         settings.addSubview(intervalLabel)
+
+        folderCountLabel = NSTextField(labelWithString: "")
+        folderCountLabel.font = NSFont.systemFont(ofSize: 11)
+        folderCountLabel.textColor = .secondaryLabelColor
+        folderCountLabel.frame = NSRect(x: 0, y: 28, width: 430, height: 18)
+        settings.addSubview(folderCountLabel)
 
         return settings
     }
@@ -486,6 +527,14 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         wallpaperManager.checkPlaybackState()
     }
 
+    @objc func includeSubfoldersChanged(_ sender: NSButton) {
+        SettingsManager.shared.includeSubfolders = (sender.state == .on)
+        if SettingsManager.shared.isFolderMode, let path = SettingsManager.shared.folderPath {
+            wallpaperManager.setFolder(url: URL(fileURLWithPath: path))
+        }
+        updateUI()
+    }
+
     @objc func shuffleSwitchChanged(_ sender: NSButton) {
         SettingsManager.shared.isShuffleMode = (sender.state == .on)
         updateUI()
@@ -560,11 +609,19 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         
         intervalField.isEnabled = isFolderMode && isRotationEnabled
         intervalStepper.isEnabled = isFolderMode && isRotationEnabled
-        
+        includeSubfoldersSwitch.state = SettingsManager.shared.includeSubfolders ? .on : .off
+
         rotationSwitch.contentTintColor = isFolderMode ? nil : .disabledControlTextColor
         shuffleSwitch.contentTintColor = (isFolderMode && isRotationEnabled) ? nil : .disabledControlTextColor
         intervalPrefix.textColor = (isFolderMode && isRotationEnabled) ? .labelColor : .disabledControlTextColor
         intervalLabel.textColor = (isFolderMode && isRotationEnabled) ? .secondaryLabelColor : .disabledControlTextColor
+        folderCountLabel.textColor = isFolderMode ? .secondaryLabelColor : .disabledControlTextColor
+        if isFolderMode {
+            let recursive = SettingsManager.shared.includeSubfolders ? "ui.recursiveEnabled".localized : "ui.recursiveDisabled".localized
+            folderCountLabel.stringValue = "ui.folderItems".localized(wallpaperManager.playlistItemCount, recursive)
+        } else {
+            folderCountLabel.stringValue = ""
+        }
 
         var wallpaperPath: String?
         var isCurrentlyPaused = false
@@ -596,11 +653,16 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
                 fileTypeLabel.stringValue = type == .video ? "ui.video".localized : "ui.image".localized
             }
 
-            let isAutoPaused = SettingsManager.shared.pauseWhenInvisible && wallpaperManager.isPausedInternally
-            if isCurrentlyPaused || isAutoPaused {
+            let isAutoPaused = SettingsManager.shared.pauseWhenInvisible && wallpaperManager.isPausedInternally && !isCurrentlyPaused
+            if isCurrentlyPaused {
                 statusIndicator.layer?.backgroundColor = NSColor.systemYellow.cgColor
-                statusLabel.stringValue = "ui.status".localized("ui.paused".localized)
+                statusLabel.stringValue = "ui.status".localized("ui.pausedManual".localized)
                 statusLabel.textColor = .systemYellow
+                previewPlayer?.pause()
+            } else if isAutoPaused {
+                statusIndicator.layer?.backgroundColor = NSColor.systemOrange.cgColor
+                statusLabel.stringValue = "ui.status".localized("ui.pausedAuto".localized)
+                statusLabel.textColor = .systemOrange
                 previewPlayer?.pause()
             } else {
                 statusIndicator.layer?.backgroundColor = NSColor.systemGreen.cgColor
@@ -656,12 +718,21 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
         switch type {
         case .image:
-            if let image = NSImage(contentsOf: url) {
+            setPreviewLoading(true)
+            let targetSize = previewImageView.frame.size
+            let fallbackSize = NSSize(width: 460, height: isFolder ? 180 : 280)
+            let requestedSize = (targetSize.width > 0 && targetSize.height > 0) ? targetSize : fallbackSize
+
+            ThumbnailProvider.shared.requestThumbnail(for: url, size: requestedSize) { [weak self] image in
+                guard let self, self.currentPreviewPath == url.path else { return }
+                self.setPreviewLoading(false)
+                guard let image else { return }
                 previewImageView.image = image
                 previewImageView.isHidden = false
                 previewPlayerLayer.isHidden = true
             }
         case .video:
+            setPreviewLoading(false)
             previewPlayer = AVPlayer(url: url)
             previewPlayer?.isMuted = true
             previewPlayerLayer.player = previewPlayer
@@ -678,11 +749,13 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
                 self?.previewPlayer?.play()
             }
         case .unsupported:
+            setPreviewLoading(false)
             break
         }
     }
 
     private func clearPreview() {
+        setPreviewLoading(false)
         previewPlayer?.pause()
         if let observer = previewEndObserver {
             NotificationCenter.default.removeObserver(observer)
@@ -692,6 +765,74 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         previewPlayerLayer.player = nil
         previewImageView.image = nil
         scrollView.isHidden = true
+    }
+
+    private func setPreviewLoading(_ loading: Bool) {
+        previewLoadingOverlay.isHidden = !loading
+        if loading {
+            previewLoadingSpinner.startAnimation(nil)
+        } else {
+            previewLoadingSpinner.stopAnimation(nil)
+        }
+    }
+
+    func runOnboardingIfNeeded() {
+        guard !SettingsManager.shared.onboardingCompleted else { return }
+        if SettingsManager.shared.hasExistingSetup {
+            SettingsManager.shared.onboardingCompleted = true
+            return
+        }
+
+        showWindow(nil)
+        window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+
+        let step1 = NSAlert()
+        step1.messageText = "onboarding.step1.title".localized
+        step1.informativeText = "onboarding.step1.message".localized
+        step1.alertStyle = .informational
+        step1.addButton(withTitle: "onboarding.pickFile".localized)
+        step1.addButton(withTitle: "onboarding.pickFolder".localized)
+        step1.addButton(withTitle: "onboarding.skip".localized)
+        let step1Result = step1.runModal()
+        if step1Result == .alertFirstButtonReturn {
+            selectFile()
+        } else if step1Result == .alertSecondButtonReturn {
+            selectFolder()
+        }
+
+        let step2 = NSAlert()
+        step2.messageText = "onboarding.step2.title".localized
+        step2.informativeText = "onboarding.step2.message".localized
+        step2.alertStyle = .informational
+        step2.addButton(withTitle: "onboarding.interval15".localized)
+        step2.addButton(withTitle: "onboarding.interval5".localized)
+        step2.addButton(withTitle: "onboarding.interval30".localized)
+        let step2Result = step2.runModal()
+        let minutes: Int
+        if step2Result == .alertSecondButtonReturn {
+            minutes = 5
+        } else if step2Result == .alertThirdButtonReturn {
+            minutes = 30
+        } else {
+            minutes = 15
+        }
+        updateInterval(minutes: minutes)
+        intervalField.integerValue = minutes
+        intervalStepper.integerValue = minutes
+
+        let step3 = NSAlert()
+        step3.messageText = "onboarding.step3.title".localized
+        step3.informativeText = "onboarding.step3.message".localized
+        step3.alertStyle = .informational
+        step3.addButton(withTitle: "onboarding.enable".localized)
+        step3.addButton(withTitle: "onboarding.notNow".localized)
+        let enableLaunch = (step3.runModal() == .alertFirstButtonReturn)
+        SettingsManager.shared.launchAtLogin = enableLaunch
+        launchSwitch.state = enableLaunch ? .on : .off
+
+        SettingsManager.shared.onboardingCompleted = true
+        updateUI()
     }
     func collectionView(_ collectionView: NSCollectionView, didSelectItemsAt indexPaths: Set<IndexPath>) {
         if let indexPath = indexPaths.first {

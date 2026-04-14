@@ -1,5 +1,4 @@
 import Cocoa
-import AVFoundation
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem!
@@ -35,6 +34,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                   FileManager.default.fileExists(atPath: url.path) {
             wallpaperManager.setWallpaper(url: url)
         }
+
+        mainWindow.runOnboardingIfNeeded()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
@@ -141,35 +142,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
             let icon = iconFor(path: path)
             item.image = icon
+            requestAsyncIcon(for: path, item: item)
 
             recentMenu.addItem(item)
         }
     }
 
     private func iconFor(path: String) -> NSImage? {
-        let url = URL(fileURLWithPath: path)
-        switch MediaType.detect(url) {
-        case .image:
-            if let img = NSImage(contentsOf: url) {
-                let thumb = NSImage(size: NSSize(width: 20, height: 20))
-                thumb.lockFocus()
-                img.draw(in: NSRect(x: 0, y: 0, width: 20, height: 20),
-                         from: .zero, operation: .copy, fraction: 1)
-                thumb.unlockFocus()
-                return thumb
-            }
-        case .video:
-            let asset = AVURLAsset(url: url)
-            let gen = AVAssetImageGenerator(asset: asset)
-            gen.appliesPreferredTrackTransform = true
-            gen.maximumSize = CGSize(width: 40, height: 40)
-            if let cgImg = try? gen.copyCGImage(at: .zero, actualTime: nil) {
-                return NSImage(cgImage: cgImg, size: NSSize(width: 20, height: 20))
-            }
-        case .unsupported:
-            break
-        }
         return NSWorkspace.shared.icon(forFile: path)
+    }
+
+    private func requestAsyncIcon(for path: String, item: NSMenuItem) {
+        let url = URL(fileURLWithPath: path)
+        ThumbnailProvider.shared.requestThumbnail(for: url, size: NSSize(width: 20, height: 20)) { [weak item] image in
+            guard let item else { return }
+            guard let image else { return }
+            item.image = image
+        }
     }
 
     @objc func switchToRecent(_ sender: NSMenuItem) {
@@ -299,14 +288,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func updateAutoPauseItem() {
         autoPauseItem.state = SettingsManager.shared.pauseWhenInvisible ? .on : .off
-        
-        let statusStr: String
         if !wallpaperManager.isActive {
-            statusStr = "ui.notSet".localized
-            statusMenuItem.title = "menu.status".localized(statusStr)
+            statusMenuItem.title = "menu.status".localized("ui.notSet".localized)
         } else {
-            let isPausedState = wallpaperManager.isPaused || (SettingsManager.shared.pauseWhenInvisible && wallpaperManager.isPausedInternally)
-            let stateLabel = isPausedState ? "ui.paused".localized : "ui.playing".localized
+            let stateLabel: String
+            switch wallpaperManager.playbackStatus {
+            case .stopped:
+                stateLabel = "ui.notSet".localized
+            case .playing:
+                stateLabel = "ui.playing".localized
+            case .pausedManual:
+                stateLabel = "ui.pausedManual".localized
+            case .pausedAuto:
+                stateLabel = "ui.pausedAuto".localized
+            }
             
             let isRotating = SettingsManager.shared.isFolderMode && SettingsManager.shared.isRotationEnabled
             let shuffleIcon = (isRotating && SettingsManager.shared.isShuffleMode) ? "🔀 " : ""

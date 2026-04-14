@@ -1,10 +1,10 @@
 import Cocoa
-import AVFoundation
 
 class ThumbnailItem: NSCollectionViewItem {
     static let identifier = NSUserInterfaceItemIdentifier("ThumbnailItem")
     
     private let thumbnailImageView = NSImageView()
+    private var representedPath: String?
     
     override func loadView() {
         self.view = NSView()
@@ -17,8 +17,15 @@ class ThumbnailItem: NSCollectionViewItem {
         thumbnailImageView.imageScaling = .scaleProportionallyUpOrDown
         self.view.addSubview(thumbnailImageView)
     }
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        representedPath = nil
+        thumbnailImageView.image = nil
+    }
     
     func configure(with url: URL, isActive: Bool) {
+        representedPath = url.path
         thumbnailImageView.image = nil
         
         if isActive {
@@ -28,31 +35,9 @@ class ThumbnailItem: NSCollectionViewItem {
             self.view.layer?.borderWidth = 0
         }
 
-        let type = MediaType.detect(url)
-        if type == .image {
-            DispatchQueue.global(qos: .userInitiated).async {
-                if let image = NSImage(contentsOf: url) {
-                    DispatchQueue.main.async {
-                        self.thumbnailImageView.image = image
-                    }
-                }
-            }
-        } else if type == .video {
-            DispatchQueue.global(qos: .userInitiated).async {
-                let asset = AVURLAsset(url: url)
-                let generator = AVAssetImageGenerator(asset: asset)
-                generator.appliesPreferredTrackTransform = true
-                generator.maximumSize = CGSize(width: 200, height: 200)
-                do {
-                    let cgImage = try generator.copyCGImage(at: .zero, actualTime: nil)
-                    let image = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
-                    DispatchQueue.main.async {
-                        self.thumbnailImageView.image = image
-                    }
-                } catch {
-                    print("Failed to generate thumbnail for \(url.lastPathComponent): \(error)")
-                }
-            }
+        ThumbnailProvider.shared.requestThumbnail(for: url, size: NSSize(width: 80, height: 80)) { [weak self] image in
+            guard let self, self.representedPath == url.path else { return }
+            self.thumbnailImageView.image = image
         }
     }
 }

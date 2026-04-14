@@ -2,14 +2,23 @@ import Cocoa
 import AVFoundation
 
 class WallpaperManager {
+    enum PlaybackStatus {
+        case stopped
+        case playing
+        case pausedManual
+        case pausedAuto
+    }
+
     private var players: [String: ScreenPlayer] = [:]
     var currentFiles: [String: URL] = [:]
     var isActive: Bool { !players.isEmpty }
     var isPaused: Bool = false
     private var keepVisibleTimer: Timer?
+    private let keepVisibleInterval: TimeInterval = 0.75
     private var pausedScreens: Set<String> = []
 
     var playlist: [URL] = []
+    var playlistItemCount: Int { playlist.count }
     public private(set) var currentPlaylistIndex: Int = 0
     private var rotationTimer: Timer?
 
@@ -18,6 +27,19 @@ class WallpaperManager {
 
     var currentFile: URL? {
         currentFiles.values.first
+    }
+
+    var playbackStatus: PlaybackStatus {
+        if !isActive {
+            return .stopped
+        }
+        if isPaused {
+            return .pausedManual
+        }
+        if SettingsManager.shared.pauseWhenInvisible && isPausedInternally {
+            return .pausedAuto
+        }
+        return .playing
     }
 
     init() {
@@ -134,12 +156,12 @@ class WallpaperManager {
 
     @objc func nextWallpaper() {
         guard !playlist.isEmpty else { return }
-        
-        if SettingsManager.shared.isShuffleMode {
-            currentPlaylistIndex = Int.random(in: 0..<playlist.count)
-        } else {
-            currentPlaylistIndex = (currentPlaylistIndex + 1) % playlist.count
-        }
+        let token = PerformanceMonitor.shared.begin("wallpaper.switch")
+        currentPlaylistIndex = PlaylistBuilder.nextIndex(
+            currentIndex: currentPlaylistIndex,
+            itemCount: playlist.count,
+            shuffle: SettingsManager.shared.isShuffleMode
+        )
         
         let nextURL = playlist[currentPlaylistIndex]
         
@@ -151,6 +173,7 @@ class WallpaperManager {
                 player.pausePlayback()
             }
         }
+        PerformanceMonitor.shared.end(token, extra: "players=\(players.count) file=\(nextURL.lastPathComponent)")
         NotificationCenter.default.post(name: WallpaperManager.didRotateNotification, object: nil)
     }
 
@@ -185,11 +208,12 @@ class WallpaperManager {
         stopAll()
         SettingsManager.shared.isFolderMode = true
         SettingsManager.shared.folderPath = url.path
+        let token = PerformanceMonitor.shared.begin("playlist.build")
         
         do {
-            let files = try FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])
-            playlist = files.filter { MediaType.detect($0) != .unsupported }.sorted { $0.lastPathComponent < $1.lastPathComponent }
+            playlist = try PlaylistBuilder.collectMediaFiles(in: url, includeSubfolders: SettingsManager.shared.includeSubfolders)
             currentPlaylistIndex = 0
+            PerformanceMonitor.shared.end(token, extra: "count=\(playlist.count) recursive=\(SettingsManager.shared.includeSubfolders)")
             
             if let firstURL = playlist.first {
                 for screen in NSScreen.screens {
@@ -205,6 +229,7 @@ class WallpaperManager {
                 }
             }
         } catch {
+            PerformanceMonitor.shared.end(token, extra: "failed=\(error.localizedDescription)")
             print("Failed to read directory: \(error)")
         }
     }
@@ -273,13 +298,12 @@ class WallpaperManager {
         players.forEach { id, player in
             guard !pausedScreens.contains(id) else { return }
             player.window?.orderBack(nil)
-            player.window?.orderFrontRegardless()
         }
     }
 
     private func startKeepVisibleTimer() {
         keepVisibleTimer?.invalidate()
-        keepVisibleTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+        keepVisibleTimer = Timer.scheduledTimer(withTimeInterval: keepVisibleInterval, repeats: true) { [weak self] _ in
             self?.showAll()
         }
     }

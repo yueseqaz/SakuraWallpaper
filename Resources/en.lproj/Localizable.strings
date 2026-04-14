@@ -22,6 +22,8 @@
 "ui.status" = "Status: %@";
 "ui.playing" = "Live";
 "ui.paused" = "Paused";
+"ui.pausedManual" = "Paused (Manual)";
+"ui.pausedAuto" = "Paused (Battery Saver)";
 "ui.notSet" = "None";
 "ui.launchAtLogin" = "Launch at Login";
 "ui.pauseWhenInvisible" = "Battery Saver";
@@ -29,6 +31,7 @@
 "ui.enableRotation" = "Enable Rotation";
 "ui.folderMode" = "Rotation Mode";
 "ui.shuffleMode" = "Shuffle";
+"ui.includeSubfolders" = "Include Subfolders";
 "ui.minutes" = "mins";
 "ui.hour" = "hour";
 "ui.hours" = "hours";
@@ -39,7 +42,27 @@
 "ui.image" = "Image";
 "ui.dropHere" = "Drop or Pick a Wallpaper";
 "ui.formats" = "Supports MP4, MOV, GIF, PNG, JPG, WebP";
+"ui.loadingPreview" = "Loading preview...";
+"ui.folderItems" = "Items: %d (%@)";
+"ui.recursiveEnabled" = "recursive";
+"ui.recursiveDisabled" = "current folder only";
 "ui.madeBy" = "Made with %@ by sakura";
+
+// Onboarding
+"onboarding.step1.title" = "Step 1: Pick Your Wallpaper";
+"onboarding.step1.message" = "Choose a file or a folder to get started.";
+"onboarding.step2.title" = "Step 2: Set Rotation Interval";
+"onboarding.step2.message" = "How often should wallpapers switch in folder mode?";
+"onboarding.step3.title" = "Step 3: Launch at Login";
+"onboarding.step3.message" = "Enable auto-launch so SakuraWallpaper starts with macOS.";
+"onboarding.pickFile" = "Pick File";
+"onboarding.pickFolder" = "Pick Folder";
+"onboarding.skip" = "Skip for Now";
+"onboarding.interval5" = "Every 5 mins";
+"onboarding.interval15" = "Every 15 mins";
+"onboarding.interval30" = "Every 30 mins";
+"onboarding.enable" = "Enable";
+"onboarding.notNow" = "Not Now";
 
 // Menu
 "menu.open" = "Open SakuraWallpaper";
