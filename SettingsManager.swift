@@ -2,6 +2,14 @@ import Foundation
 import ServiceManagement
 import Cocoa
 
+struct ScreenFolderConfig: Codable {
+    let folderPath: String
+    var rotationIntervalMinutes: Int
+    var isShuffleMode: Bool
+    var isRotationEnabled: Bool
+    var includeSubfolders: Bool
+}
+
 class SettingsManager {
     static let shared = SettingsManager()
 
@@ -19,6 +27,7 @@ class SettingsManager {
     private let isRotationEnabledKey = "sakurawallpaper_is_rotation_enabled"
     private let includeSubfoldersKey = "sakurawallpaper_include_subfolders"
     private let onboardingCompletedKey = "sakurawallpaper_onboarding_completed"
+    private let screenFolderConfigsKey = "sakurawallpaper_screen_folder_configs"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -137,10 +146,54 @@ class SettingsManager {
         !screenWallpapers.isEmpty
     }
 
+    var screenFolderConfigs: [String: ScreenFolderConfig] {
+        get {
+            guard let data = defaults.data(forKey: screenFolderConfigsKey),
+                  let decoded = try? JSONDecoder().decode([String: ScreenFolderConfig].self, from: data) else {
+                return [:]
+            }
+            return decoded
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue) {
+                defaults.set(data, forKey: screenFolderConfigsKey)
+            }
+        }
+    }
+
+    func folderConfig(for screen: NSScreen) -> ScreenFolderConfig? {
+        screenFolderConfigs[SettingsManager.screenIdentifier(screen)]
+    }
+
+    func setFolderConfig(_ config: ScreenFolderConfig?, for screen: NSScreen) {
+        let id = SettingsManager.screenIdentifier(screen)
+        var all = screenFolderConfigs
+        all[id] = config
+        screenFolderConfigs = all
+        if let config {
+            folderPath = config.folderPath
+            isFolderMode = true
+            rotationIntervalMinutes = config.rotationIntervalMinutes
+            isShuffleMode = config.isShuffleMode
+            isRotationEnabled = config.isRotationEnabled
+            includeSubfolders = config.includeSubfolders
+            addToHistory(config.folderPath)
+        }
+    }
+
+    func clearFolderConfig(for screen: NSScreen) {
+        setFolderConfig(nil, for: screen)
+    }
+
+    func clearAllFolderConfigs() {
+        screenFolderConfigs = [:]
+    }
+
     var hasExistingSetup: Bool {
         if wallpaperPath != nil { return true }
         if folderPath != nil { return true }
         if hasScreenWallpapers { return true }
+        if !screenFolderConfigs.isEmpty { return true }
         return !wallpaperHistory.isEmpty
     }
 

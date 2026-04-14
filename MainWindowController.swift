@@ -73,6 +73,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         NotificationCenter.default.addObserver(self, selector: #selector(rotationHappened), name: WallpaperManager.didRotateNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(statusChanged), name: WallpaperManager.playbackStateDidChangeNotification, object: nil)
 
+        wallpaperManager.setUIScreen(selectedScreen)
         updateUI()
     }
 
@@ -179,13 +180,16 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
     @objc private func screenSelectionChanged(_ sender: NSPopUpButton) {
         selectedScreen = sender.selectedItem?.representedObject as? NSScreen
+        wallpaperManager.setUIScreen(selectedScreen)
         updateUI()
     }
 
     @objc private func applyToAllScreens() {
-        if SettingsManager.shared.isFolderMode {
-            if let path = SettingsManager.shared.folderPath {
-                wallpaperManager.setFolder(url: URL(fileURLWithPath: path))
+        if let sourceScreen = selectedScreen,
+           let config = SettingsManager.shared.folderConfig(for: sourceScreen) {
+            let folderURL = URL(fileURLWithPath: config.folderPath)
+            for targetScreen in NSScreen.screens {
+                wallpaperManager.setFolder(url: folderURL, for: targetScreen, config: config)
             }
         } else if let url = wallpaperManager.currentFile {
             wallpaperManager.setWallpaper(url: url)
@@ -235,7 +239,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         previewContainer.addSubview(previewImageView)
 
         previewPlayerLayer = AVPlayerLayer()
-        previewPlayerLayer.videoGravity = .resizeAspect
+        previewPlayerLayer.videoGravity = .resizeAspectFill
         previewPlayerLayer.frame = previewContainer.bounds
         previewContainer.layer?.addSublayer(previewPlayerLayer)
 
@@ -257,6 +261,8 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         scrollView.documentView = collectionView
         scrollView.hasHorizontalScroller = true
         scrollView.hasVerticalScroller = false
+        scrollView.autohidesScrollers = false
+        scrollView.scrollerStyle = .legacy
         scrollView.isHidden = true
         scrollView.drawsBackground = false
         previewContainer.addSubview(scrollView)
@@ -356,7 +362,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         shuffleSwitch = NSButton(checkboxWithTitle: "ui.shuffleMode".localized,
                                  target: self, action: #selector(shuffleSwitchChanged))
         shuffleSwitch.font = NSFont.systemFont(ofSize: 12)
-        shuffleSwitch.frame = NSRect(x: 130, y: 104, width: 150, height: 20)
+        shuffleSwitch.frame = NSRect(x: 160, y: 104, width: 200, height: 20)
         shuffleSwitch.state = SettingsManager.shared.isShuffleMode ? .on : .off
         settings.addSubview(shuffleSwitch)
 
@@ -473,21 +479,34 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         }
 
         if isDir.boolValue {
-            // Folders currently apply to All Screens
-            selectedScreen = nil
-            wallpaperManager.setFolder(url: url)
+            let config = ScreenFolderConfig(
+                folderPath: url.path,
+                rotationIntervalMinutes: max(1, intervalField.integerValue),
+                isShuffleMode: (shuffleSwitch.state == .on),
+                isRotationEnabled: (rotationSwitch.state == .on),
+                includeSubfolders: (includeSubfoldersSwitch.state == .on)
+            )
+            if let screen = selectedScreen {
+                wallpaperManager.setFolder(url: url, for: screen, config: config)
+            } else {
+                for screen in NSScreen.screens {
+                    wallpaperManager.setFolder(url: url, for: screen, config: config)
+                }
+            }
         } else {
             let type = MediaType.detect(url)
             guard type != .unsupported else {
                 throw WallpaperError.unsupportedFormat
             }
-            SettingsManager.shared.isFolderMode = false
-            SettingsManager.shared.isRotationEnabled = false
-            SettingsManager.shared.isShuffleMode = false
 
             if let screen = selectedScreen {
                 wallpaperManager.setWallpaper(url: url, for: screen)
+                SettingsManager.shared.clearFolderConfig(for: screen)
             } else {
+                SettingsManager.shared.isFolderMode = false
+                SettingsManager.shared.isRotationEnabled = false
+                SettingsManager.shared.isShuffleMode = false
+                SettingsManager.shared.clearAllFolderConfigs()
                 wallpaperManager.setWallpaper(url: url)
                 SettingsManager.shared.wallpaperPath = url.path
             }
@@ -513,6 +532,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
             SettingsManager.shared.wallpaperPath = nil
             SettingsManager.shared.isFolderMode = false
             SettingsManager.shared.folderPath = nil
+            SettingsManager.shared.clearAllFolderConfigs()
         }
         updateUI()
         (NSApp.delegate as? AppDelegate)?.rebuildRecentMenu()
@@ -529,7 +549,10 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
     @objc func includeSubfoldersChanged(_ sender: NSButton) {
         SettingsManager.shared.includeSubfolders = (sender.state == .on)
-        if SettingsManager.shared.isFolderMode, let path = SettingsManager.shared.folderPath {
+        if let screen = selectedScreen, var config = SettingsManager.shared.folderConfig(for: screen) {
+            config.includeSubfolders = (sender.state == .on)
+            wallpaperManager.setFolder(url: URL(fileURLWithPath: config.folderPath), for: screen, config: config)
+        } else if SettingsManager.shared.isFolderMode, let path = SettingsManager.shared.folderPath {
             wallpaperManager.setFolder(url: URL(fileURLWithPath: path))
         }
         updateUI()
@@ -537,11 +560,20 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
     @objc func shuffleSwitchChanged(_ sender: NSButton) {
         SettingsManager.shared.isShuffleMode = (sender.state == .on)
+        if let screen = selectedScreen, var config = SettingsManager.shared.folderConfig(for: screen) {
+            config.isShuffleMode = (sender.state == .on)
+            SettingsManager.shared.setFolderConfig(config, for: screen)
+            wallpaperManager.startRotationTimer()
+        }
         updateUI()
     }
 
     @objc func rotationSwitchChanged(_ sender: NSButton) {
         SettingsManager.shared.isRotationEnabled = (sender.state == .on)
+        if let screen = selectedScreen, var config = SettingsManager.shared.folderConfig(for: screen) {
+            config.isRotationEnabled = (sender.state == .on)
+            SettingsManager.shared.setFolderConfig(config, for: screen)
+        }
         if sender.state == .on {
             wallpaperManager.startRotationTimer()
         } else {
@@ -568,6 +600,10 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private func updateInterval(minutes: Int) {
         SettingsManager.shared.rotationIntervalMinutes = minutes
         intervalLabel.stringValue = formatInterval(minutes: minutes)
+        if let screen = selectedScreen, var config = SettingsManager.shared.folderConfig(for: screen) {
+            config.rotationIntervalMinutes = minutes
+            SettingsManager.shared.setFolderConfig(config, for: screen)
+        }
         if SettingsManager.shared.isFolderMode && SettingsManager.shared.isRotationEnabled {
             wallpaperManager.startRotationTimer()
         }
@@ -591,15 +627,23 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
     func updateUI() {
         updateScreenMenu()
+        wallpaperManager.setUIScreen(selectedScreen)
 
         let isAllScreens = (selectedScreen == nil)
         stopButton.isEnabled = isAllScreens ? wallpaperManager.isActive : (wallpaperManager.wallpaperPath(for: selectedScreen!) != nil)
         stopButton.title = isAllScreens ? "ui.stopWallpaper".localized : "\("ui.stopWallpaper".localized) (\("ui.screen".localized))"
         applyAllButton.isEnabled = !isAllScreens
         
-        let isFolderMode = SettingsManager.shared.isFolderMode
-        let isRotationEnabled = SettingsManager.shared.isRotationEnabled
-        let isShuffleMode = SettingsManager.shared.isShuffleMode
+        let selectedFolderConfig = selectedScreen.flatMap { SettingsManager.shared.folderConfig(for: $0) }
+        let isFolderMode = selectedFolderConfig != nil || (!SettingsManager.shared.screenFolderConfigs.isEmpty && selectedScreen == nil) || SettingsManager.shared.isFolderMode
+        let isRotationEnabled = selectedFolderConfig?.isRotationEnabled ?? SettingsManager.shared.isRotationEnabled
+        let isShuffleMode = selectedFolderConfig?.isShuffleMode ?? SettingsManager.shared.isShuffleMode
+        let currentIncludeSubfolders = selectedFolderConfig?.includeSubfolders ?? SettingsManager.shared.includeSubfolders
+        let currentInterval = selectedFolderConfig?.rotationIntervalMinutes ?? SettingsManager.shared.rotationIntervalMinutes
+        pauseSwitch.state = SettingsManager.shared.pauseWhenInvisible ? .on : .off
+        intervalField.integerValue = currentInterval
+        intervalStepper.integerValue = currentInterval
+        intervalLabel.stringValue = formatInterval(minutes: currentInterval)
         
         rotationSwitch.isEnabled = isFolderMode
         rotationSwitch.state = isRotationEnabled ? .on : .off
@@ -609,7 +653,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         
         intervalField.isEnabled = isFolderMode && isRotationEnabled
         intervalStepper.isEnabled = isFolderMode && isRotationEnabled
-        includeSubfoldersSwitch.state = SettingsManager.shared.includeSubfolders ? .on : .off
+        includeSubfoldersSwitch.state = currentIncludeSubfolders ? .on : .off
 
         rotationSwitch.contentTintColor = isFolderMode ? nil : .disabledControlTextColor
         shuffleSwitch.contentTintColor = (isFolderMode && isRotationEnabled) ? nil : .disabledControlTextColor
@@ -617,7 +661,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         intervalLabel.textColor = (isFolderMode && isRotationEnabled) ? .secondaryLabelColor : .disabledControlTextColor
         folderCountLabel.textColor = isFolderMode ? .secondaryLabelColor : .disabledControlTextColor
         if isFolderMode {
-            let recursive = SettingsManager.shared.includeSubfolders ? "ui.recursiveEnabled".localized : "ui.recursiveDisabled".localized
+            let recursive = currentIncludeSubfolders ? "ui.recursiveEnabled".localized : "ui.recursiveDisabled".localized
             folderCountLabel.stringValue = "ui.folderItems".localized(wallpaperManager.playlistItemCount, recursive)
         } else {
             folderCountLabel.stringValue = ""
@@ -691,7 +735,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
     private func showPreview(url: URL, type: MediaType) {
         if currentPreviewPath == url.path {
-            if SettingsManager.shared.isFolderMode {
+            if SettingsManager.shared.isFolderMode || selectedScreen.flatMap({ SettingsManager.shared.folderConfig(for: $0) }) != nil {
                 collectionView.reloadData()
             }
             return
@@ -701,7 +745,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         clearPreview()
         dropZone.isHidden = true
         
-        let isFolder = SettingsManager.shared.isFolderMode
+        let isFolder = SettingsManager.shared.isFolderMode || selectedScreen.flatMap({ SettingsManager.shared.folderConfig(for: $0) }) != nil
         
         if isFolder {
             scrollView.isHidden = false
@@ -710,6 +754,8 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
             previewImageView.frame = previewFrame
             previewPlayerLayer.frame = previewFrame
             collectionView.reloadData()
+            collectionView.layoutSubtreeIfNeeded()
+            scrollView.reflectScrolledClipView(scrollView.contentView)
         } else {
             scrollView.isHidden = true
             previewImageView.frame = previewContainer.bounds
@@ -839,6 +885,10 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
             // Stop rotation when user manually picks a wallpaper
             if SettingsManager.shared.isRotationEnabled {
                 SettingsManager.shared.isRotationEnabled = false
+                if let screen = selectedScreen, var config = SettingsManager.shared.folderConfig(for: screen) {
+                    config.isRotationEnabled = false
+                    SettingsManager.shared.setFolderConfig(config, for: screen)
+                }
                 wallpaperManager.startRotationTimer() // This will stop it because of the guard
             }
             wallpaperManager.selectPlaylistItem(at: indexPath.item)

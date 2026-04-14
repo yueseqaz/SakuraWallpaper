@@ -3,6 +3,7 @@
 APP_NAME="SakuraWallpaper"
 BUILD_DIR="build"
 APP_DIR="$BUILD_DIR/$APP_NAME.app"
+APP_VERSION="1.0.1"
 
 # 清理
 rm -rf "$BUILD_DIR"
@@ -25,7 +26,7 @@ swiftc -o "$APP_DIR/Contents/MacOS/$APP_NAME" \
     AboutWindowController.swift \
     AppDelegate.swift \
     main.swift \
-    -framework Cocoa -framework AVKit -framework AVFoundation -framework ServiceManagement -framework ImageIO
+    -framework Cocoa -framework AVKit -framework AVFoundation -framework ServiceManagement -framework ImageIO -framework IOKit
 
 # 复制资源
 cp -R Resources "$APP_DIR/Contents/"
@@ -48,9 +49,9 @@ cat > "$APP_DIR/Contents/Info.plist" << EOF
     <key>CFBundleName</key>
     <string>$APP_NAME</string>
     <key>CFBundleVersion</key>
-    <string>0.1.0</string>
+    <string>$APP_VERSION</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.1.0</string>
+    <string>$APP_VERSION</string>
     <key>LSMinimumSystemVersion</key>
     <string>12.0</string>
     <key>LSUIElement</key>

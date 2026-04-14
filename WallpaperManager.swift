@@ -1,5 +1,6 @@
 import Cocoa
 import AVFoundation
+import IOKit.ps
 
 class WallpaperManager {
     enum PlaybackStatus {
@@ -14,19 +15,36 @@ class WallpaperManager {
     var isActive: Bool { !players.isEmpty }
     var isPaused: Bool = false
     private var keepVisibleTimer: Timer?
+    private var batteryCheckTimer: Timer?
     private let keepVisibleInterval: TimeInterval = 0.75
+    private let lowBatteryPauseThreshold = 20
     private var pausedScreens: Set<String> = []
 
-    var playlist: [URL] = []
-    var playlistItemCount: Int { playlist.count }
-    public private(set) var currentPlaylistIndex: Int = 0
-    private var rotationTimer: Timer?
+    private var playlistsByScreen: [String: [URL]] = [:]
+    private var playlistIndexesByScreen: [String: Int] = [:]
+    private var rotationTimersByScreen: [String: Timer] = [:]
+    private var uiScreenID: String?
 
     static let didRotateNotification = Notification.Name("WallpaperManagerDidRotate")
     static let playbackStateDidChangeNotification = Notification.Name("WallpaperManagerPlaybackStateDidChange")
 
+    var playlist: [URL] {
+        let id = uiOrFirstPlaylistScreenID()
+        return id.flatMap { playlistsByScreen[$0] } ?? []
+    }
+
+    var playlistItemCount: Int { playlist.count }
+
+    var currentPlaylistIndex: Int {
+        let id = uiOrFirstPlaylistScreenID()
+        return id.flatMap { playlistIndexesByScreen[$0] } ?? 0
+    }
+
     var currentFile: URL? {
-        currentFiles.values.first
+        if let id = uiScreenID, let file = currentFiles[id] {
+            return file
+        }
+        return currentFiles.values.first
     }
 
     var playbackStatus: PlaybackStatus {
@@ -91,6 +109,19 @@ class WallpaperManager {
             name: NSWorkspace.screensDidWakeNotification,
             object: nil
         )
+        startBatteryCheckTimer()
+    }
+
+    deinit {
+        stopKeepVisibleTimer()
+        stopBatteryCheckTimer()
+        stopRotationTimer()
+        NotificationCenter.default.removeObserver(self)
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
+    }
+
+    func setUIScreen(_ screen: NSScreen?) {
+        uiScreenID = screen.map { SettingsManager.screenIdentifier($0) }
     }
 
     @objc private func handleSleep() {
@@ -101,135 +132,115 @@ class WallpaperManager {
         }
     }
 
-    deinit {
-        stopKeepVisibleTimer()
-        stopRotationTimer()
-        NotificationCenter.default.removeObserver(self)
-        NSWorkspace.shared.notificationCenter.removeObserver(self)
-    }
-
     @objc func checkPlaybackState() {
         guard SettingsManager.shared.pauseWhenInvisible else {
             if isPausedInternally {
                 isPausedInternally = false
                 if !isPaused { resumeAll() }
+                NotificationCenter.default.post(name: WallpaperManager.playbackStateDidChangeNotification, object: nil)
             }
             return
         }
 
-        let frontmostApp = NSWorkspace.shared.frontmostApplication
-        let bundleID = frontmostApp?.bundleIdentifier
-        let isDesktopActive = bundleID == "com.apple.finder" || bundleID == "com.sakura.wallpaper"
-
-        if isDesktopActive {
-            if isPausedInternally {
-                isPausedInternally = false
-                if !isPaused { resumeAll() }
-                NotificationCenter.default.post(name: WallpaperManager.playbackStateDidChangeNotification, object: nil)
-            }
-        } else {
+        if shouldPauseForLowBattery() {
             if !isPausedInternally {
                 isPausedInternally = true
                 pauseAll()
                 NotificationCenter.default.post(name: WallpaperManager.playbackStateDidChangeNotification, object: nil)
             }
+            return
+        }
+
+        if isPausedInternally {
+            isPausedInternally = false
+            if !isPaused { resumeAll() }
+            NotificationCenter.default.post(name: WallpaperManager.playbackStateDidChangeNotification, object: nil)
         }
     }
 
     public private(set) var isPausedInternally: Bool = false
 
-    private func stopRotationTimer() {
-        rotationTimer?.invalidate()
-        rotationTimer = nil
-    }
-
     func startRotationTimer() {
-        stopRotationTimer()
-        guard SettingsManager.shared.isRotationEnabled else { return }
-        guard playlist.count > 1 else { return }
-        
-        let interval = TimeInterval(SettingsManager.shared.rotationIntervalMinutes * 60)
-        rotationTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
-            self?.nextWallpaper()
+        if let id = uiScreenID {
+            startRotationTimer(forScreenID: id)
+            return
+        }
+        for screen in NSScreen.screens {
+            let id = SettingsManager.screenIdentifier(screen)
+            startRotationTimer(forScreenID: id)
         }
     }
 
     @objc func nextWallpaper() {
-        guard !playlist.isEmpty else { return }
-        let token = PerformanceMonitor.shared.begin("wallpaper.switch")
-        currentPlaylistIndex = PlaylistBuilder.nextIndex(
-            currentIndex: currentPlaylistIndex,
-            itemCount: playlist.count,
-            shuffle: SettingsManager.shared.isShuffleMode
-        )
-        
-        let nextURL = playlist[currentPlaylistIndex]
-        
-        // Only update screens that are currently active
-        for (id, player) in players {
-            currentFiles[id] = nextURL
-            player.updateMedia(url: nextURL)
-            if isPaused || isPausedInternally {
-                player.pausePlayback()
-            }
+        if let id = uiScreenID {
+            nextWallpaper(forScreenID: id)
+            return
         }
-        PerformanceMonitor.shared.end(token, extra: "players=\(players.count) file=\(nextURL.lastPathComponent)")
-        NotificationCenter.default.post(name: WallpaperManager.didRotateNotification, object: nil)
+        for id in playlistsByScreen.keys {
+            nextWallpaper(forScreenID: id)
+        }
     }
 
     func selectPlaylistItem(at index: Int) {
-        guard index >= 0 && index < playlist.count else { return }
-        currentPlaylistIndex = index
-        let nextURL = playlist[currentPlaylistIndex]
-        
-        for screen in NSScreen.screens {
-            let id = SettingsManager.screenIdentifier(screen)
-            currentFiles[id] = nextURL
-            
-            if let player = players[id] {
-                player.updateMedia(url: nextURL)
-                if isPaused || isPausedInternally {
-                    player.pausePlayback()
-                }
-            } else {
-                let player = ScreenPlayer(fileURL: nextURL, screen: screen)
-                player.setVolume(0)
-                players[id] = player
-                if isPaused || isPausedInternally {
-                    player.pausePlayback()
-                    player.window?.orderOut(nil)
-                }
-            }
+        if let id = uiScreenID {
+            selectPlaylistItem(at: index, forScreenID: id)
+            return
         }
-        NotificationCenter.default.post(name: WallpaperManager.didRotateNotification, object: nil)
+        for id in playlistsByScreen.keys {
+            selectPlaylistItem(at: index, forScreenID: id)
+        }
     }
 
     func setFolder(url: URL) {
-        stopAll()
+        let baseConfig = ScreenFolderConfig(
+            folderPath: url.path,
+            rotationIntervalMinutes: SettingsManager.shared.rotationIntervalMinutes,
+            isShuffleMode: SettingsManager.shared.isShuffleMode,
+            isRotationEnabled: SettingsManager.shared.isRotationEnabled,
+            includeSubfolders: SettingsManager.shared.includeSubfolders
+        )
+
+        for screen in NSScreen.screens {
+            setFolder(url: url, for: screen, config: baseConfig)
+        }
         SettingsManager.shared.isFolderMode = true
         SettingsManager.shared.folderPath = url.path
+    }
+
+    func setFolder(url: URL, for screen: NSScreen, config: ScreenFolderConfig) {
+        let id = SettingsManager.screenIdentifier(screen)
         let token = PerformanceMonitor.shared.begin("playlist.build")
-        
+
         do {
-            playlist = try PlaylistBuilder.collectMediaFiles(in: url, includeSubfolders: SettingsManager.shared.includeSubfolders)
-            currentPlaylistIndex = 0
-            PerformanceMonitor.shared.end(token, extra: "count=\(playlist.count) recursive=\(SettingsManager.shared.includeSubfolders)")
-            
-            if let firstURL = playlist.first {
-                for screen in NSScreen.screens {
-                    let id = SettingsManager.screenIdentifier(screen)
-                    currentFiles[id] = firstURL
+            let files = try PlaylistBuilder.collectMediaFiles(in: url, includeSubfolders: config.includeSubfolders)
+            playlistsByScreen[id] = files
+            playlistIndexesByScreen[id] = 0
+            PerformanceMonitor.shared.end(token, extra: "screen=\(id) count=\(files.count) recursive=\(config.includeSubfolders)")
+
+            SettingsManager.shared.setFolderConfig(config, for: screen)
+            SettingsManager.shared.isFolderMode = true
+            SettingsManager.shared.folderPath = config.folderPath
+            SettingsManager.shared.rotationIntervalMinutes = config.rotationIntervalMinutes
+            SettingsManager.shared.isShuffleMode = config.isShuffleMode
+            SettingsManager.shared.isRotationEnabled = config.isRotationEnabled
+            SettingsManager.shared.includeSubfolders = config.includeSubfolders
+
+            if let firstURL = files.first {
+                currentFiles[id] = firstURL
+                createOrUpdatePlayer(for: screen, url: firstURL)
+                if isPaused || isPausedInternally {
+                    players[id]?.pausePlayback()
+                    players[id]?.window?.orderOut(nil)
                 }
-                
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-                    self?.createAllPlayers()
-                    self?.startKeepVisibleTimer()
-                    self?.startRotationTimer()
-                    NotificationCenter.default.post(name: WallpaperManager.didRotateNotification, object: nil)
-                }
+            } else {
+                stopWallpaper(for: screen)
             }
+
+            startKeepVisibleTimer()
+            startRotationTimer(forScreenID: id)
+            NotificationCenter.default.post(name: WallpaperManager.didRotateNotification, object: nil)
         } catch {
-            PerformanceMonitor.shared.end(token, extra: "failed=\(error.localizedDescription)")
+            PerformanceMonitor.shared.end(token, extra: "screen=\(id) failed=\(error.localizedDescription)")
             print("Failed to read directory: \(error)")
         }
     }
@@ -242,14 +253,25 @@ class WallpaperManager {
             players[removedId]?.cleanup()
             players.removeValue(forKey: removedId)
             currentFiles.removeValue(forKey: removedId)
+            playlistsByScreen.removeValue(forKey: removedId)
+            playlistIndexesByScreen.removeValue(forKey: removedId)
+            stopRotationTimer(forScreenID: removedId)
+            pausedScreens.remove(removedId)
         }
 
         for screen in NSScreen.screens {
             let id = SettingsManager.screenIdentifier(screen)
-            if players[id] == nil, let url = urlForScreen(screen) {
-                let player = ScreenPlayer(fileURL: url, screen: screen)
-                player.setVolume(0)
-                players[id] = player
+            if players[id] != nil { continue }
+
+            if let config = SettingsManager.shared.folderConfig(for: screen),
+               FileManager.default.fileExists(atPath: config.folderPath) {
+                let folderURL = URL(fileURLWithPath: config.folderPath)
+                setFolder(url: folderURL, for: screen, config: config)
+                continue
+            }
+
+            if let url = urlForScreen(screen) {
+                createOrUpdatePlayer(for: screen, url: url)
                 currentFiles[id] = url
             }
         }
@@ -259,26 +281,6 @@ class WallpaperManager {
         } else {
             showAll()
         }
-    }
-
-    private func urlForScreen(_ screen: NSScreen) -> URL? {
-        // Priority 1: If we have an explicitly set file in currentFiles (important for rotation)
-        let id = SettingsManager.screenIdentifier(screen)
-        if let currentURL = currentFiles[id], FileManager.default.fileExists(atPath: currentURL.path) {
-            return currentURL
-        }
-
-        // Priority 2: Per-screen settings from disk
-        if let path = SettingsManager.shared.wallpaperPath(for: screen) {
-            return URL(fileURLWithPath: path)
-        }
-
-        // Priority 3: Global setting from disk
-        if let url = SettingsManager.shared.wallpaperURL {
-            return url
-        }
-
-        return nil
     }
 
     @objc private func appBecameActive() {
@@ -292,56 +294,6 @@ class WallpaperManager {
             }
             self?.showAll()
         }
-    }
-
-    private func showAll() {
-        players.forEach { id, player in
-            guard !pausedScreens.contains(id) else { return }
-            player.window?.orderBack(nil)
-        }
-    }
-
-    private func startKeepVisibleTimer() {
-        keepVisibleTimer?.invalidate()
-        keepVisibleTimer = Timer.scheduledTimer(withTimeInterval: keepVisibleInterval, repeats: true) { [weak self] _ in
-            self?.showAll()
-        }
-    }
-
-    private func stopKeepVisibleTimer() {
-        keepVisibleTimer?.invalidate()
-        keepVisibleTimer = nil
-    }
-
-    private func resumeAll() {
-        players.forEach { id, player in
-            guard !pausedScreens.contains(id) else { return }
-            player.resumePlayback()
-        }
-    }
-
-    private func pauseAll() {
-        players.values.forEach { $0.pausePlayback() }
-    }
-
-    func pauseScreen(_ screen: NSScreen) {
-        let id = SettingsManager.screenIdentifier(screen)
-        pausedScreens.insert(id)
-        players[id]?.pausePlayback()
-        players[id]?.window?.orderOut(nil)
-    }
-
-    func resumeScreen(_ screen: NSScreen) {
-        let id = SettingsManager.screenIdentifier(screen)
-        pausedScreens.remove(id)
-        players[id]?.resumePlayback()
-        players[id]?.window?.orderBack(nil)
-        players[id]?.window?.orderFrontRegardless()
-    }
-
-    func isScreenPaused(_ screen: NSScreen) -> Bool {
-        let id = SettingsManager.screenIdentifier(screen)
-        return pausedScreens.contains(id)
     }
 
     func pause() {
@@ -364,8 +316,29 @@ class WallpaperManager {
         NotificationCenter.default.post(name: WallpaperManager.playbackStateDidChangeNotification, object: nil)
     }
 
+    func pauseScreen(_ screen: NSScreen) {
+        let id = SettingsManager.screenIdentifier(screen)
+        pausedScreens.insert(id)
+        players[id]?.pausePlayback()
+        players[id]?.window?.orderOut(nil)
+    }
+
+    func resumeScreen(_ screen: NSScreen) {
+        let id = SettingsManager.screenIdentifier(screen)
+        pausedScreens.remove(id)
+        players[id]?.resumePlayback()
+        players[id]?.window?.orderBack(nil)
+        players[id]?.window?.orderFrontRegardless()
+    }
+
+    func isScreenPaused(_ screen: NSScreen) -> Bool {
+        let id = SettingsManager.screenIdentifier(screen)
+        return pausedScreens.contains(id)
+    }
+
     func setWallpaper(url: URL) {
         stopAll()
+        SettingsManager.shared.clearAllFolderConfigs()
         SettingsManager.shared.isFolderMode = false
         SettingsManager.shared.wallpaperPath = url.path
         for screen in NSScreen.screens {
@@ -380,8 +353,12 @@ class WallpaperManager {
     }
 
     func setWallpaper(url: URL, for screen: NSScreen) {
-        stopRotationTimer()
         let id = SettingsManager.screenIdentifier(screen)
+        stopRotationTimer(forScreenID: id)
+        playlistsByScreen.removeValue(forKey: id)
+        playlistIndexesByScreen.removeValue(forKey: id)
+        SettingsManager.shared.clearFolderConfig(for: screen)
+
         players[id]?.cleanup()
         players.removeValue(forKey: id)
 
@@ -390,25 +367,13 @@ class WallpaperManager {
         currentFiles[id] = url
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-            let player = ScreenPlayer(fileURL: url, screen: screen)
-            player.setVolume(0)
-            self?.players[id] = player
-            if self?.isPaused == true {
-                player.pausePlayback()
-                player.window?.orderOut(nil)
+            guard let self else { return }
+            self.createOrUpdatePlayer(for: screen, url: url)
+            if self.isPaused {
+                self.players[id]?.pausePlayback()
+                self.players[id]?.window?.orderOut(nil)
             }
-            self?.startKeepVisibleTimer()
-        }
-    }
-
-    private func createAllPlayers() {
-        for screen in NSScreen.screens {
-            let id = SettingsManager.screenIdentifier(screen)
-            guard let url = urlForScreen(screen) else { continue }
-            let player = ScreenPlayer(fileURL: url, screen: screen)
-            player.setVolume(0)
-            players[id] = player
-            currentFiles[id] = url
+            self.startKeepVisibleTimer()
         }
     }
 
@@ -426,8 +391,8 @@ class WallpaperManager {
         players.removeAll()
         currentFiles.removeAll()
         pausedScreens.removeAll()
-        playlist.removeAll()
-        currentPlaylistIndex = 0
+        playlistsByScreen.removeAll()
+        playlistIndexesByScreen.removeAll()
     }
 
     func stopWallpaper(for screen: NSScreen) {
@@ -436,7 +401,188 @@ class WallpaperManager {
         players.removeValue(forKey: id)
         currentFiles.removeValue(forKey: id)
         pausedScreens.remove(id)
+        playlistsByScreen.removeValue(forKey: id)
+        playlistIndexesByScreen.removeValue(forKey: id)
+        stopRotationTimer(forScreenID: id)
         SettingsManager.shared.setWallpaper(path: nil, for: screen)
+        SettingsManager.shared.clearFolderConfig(for: screen)
         if players.isEmpty { stopKeepVisibleTimer() }
+    }
+
+    private func uiOrFirstPlaylistScreenID() -> String? {
+        if let id = uiScreenID, playlistsByScreen[id] != nil {
+            return id
+        }
+        return playlistsByScreen.keys.sorted().first
+    }
+
+    private func selectPlaylistItem(at index: Int, forScreenID id: String) {
+        guard let list = playlistsByScreen[id], index >= 0 && index < list.count else { return }
+        playlistIndexesByScreen[id] = index
+        let nextURL = list[index]
+        currentFiles[id] = nextURL
+        if let player = players[id] {
+            player.updateMedia(url: nextURL)
+            if isPaused || isPausedInternally {
+                player.pausePlayback()
+            }
+        }
+        NotificationCenter.default.post(name: WallpaperManager.didRotateNotification, object: nil)
+    }
+
+    private func nextWallpaper(forScreenID id: String) {
+        guard let list = playlistsByScreen[id], !list.isEmpty else { return }
+        guard let config = folderConfig(forScreenID: id), config.isRotationEnabled else { return }
+
+        let token = PerformanceMonitor.shared.begin("wallpaper.switch")
+        let currentIndex = playlistIndexesByScreen[id] ?? 0
+        let nextIndex = PlaylistBuilder.nextIndex(
+            currentIndex: currentIndex,
+            itemCount: list.count,
+            shuffle: config.isShuffleMode
+        )
+        playlistIndexesByScreen[id] = nextIndex
+
+        let nextURL = list[nextIndex]
+        currentFiles[id] = nextURL
+        if let player = players[id] {
+            player.updateMedia(url: nextURL)
+            if isPaused || isPausedInternally {
+                player.pausePlayback()
+            }
+        }
+        PerformanceMonitor.shared.end(token, extra: "screen=\(id) file=\(nextURL.lastPathComponent)")
+        NotificationCenter.default.post(name: WallpaperManager.didRotateNotification, object: nil)
+    }
+
+    private func folderConfig(forScreenID id: String) -> ScreenFolderConfig? {
+        guard let screen = NSScreen.screens.first(where: { SettingsManager.screenIdentifier($0) == id }) else { return nil }
+        return SettingsManager.shared.folderConfig(for: screen)
+    }
+
+    private func startRotationTimer(forScreenID id: String) {
+        stopRotationTimer(forScreenID: id)
+        guard let list = playlistsByScreen[id], list.count > 1 else { return }
+        guard let config = folderConfig(forScreenID: id), config.isRotationEnabled else { return }
+
+        let interval = TimeInterval(max(1, config.rotationIntervalMinutes) * 60)
+        rotationTimersByScreen[id] = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+            self?.nextWallpaper(forScreenID: id)
+        }
+    }
+
+    private func stopRotationTimer(forScreenID id: String) {
+        rotationTimersByScreen[id]?.invalidate()
+        rotationTimersByScreen.removeValue(forKey: id)
+    }
+
+    private func stopRotationTimer() {
+        for timer in rotationTimersByScreen.values {
+            timer.invalidate()
+        }
+        rotationTimersByScreen.removeAll()
+    }
+
+    private func urlForScreen(_ screen: NSScreen) -> URL? {
+        let id = SettingsManager.screenIdentifier(screen)
+        if let currentURL = currentFiles[id], FileManager.default.fileExists(atPath: currentURL.path) {
+            return currentURL
+        }
+        if let path = SettingsManager.shared.wallpaperPath(for: screen) {
+            return URL(fileURLWithPath: path)
+        }
+        if let url = SettingsManager.shared.wallpaperURL {
+            return url
+        }
+        return nil
+    }
+
+    private func createAllPlayers() {
+        for screen in NSScreen.screens {
+            let id = SettingsManager.screenIdentifier(screen)
+            guard let url = urlForScreen(screen) else { continue }
+            createOrUpdatePlayer(for: screen, url: url)
+            currentFiles[id] = url
+        }
+    }
+
+    private func createOrUpdatePlayer(for screen: NSScreen, url: URL) {
+        let id = SettingsManager.screenIdentifier(screen)
+        if let player = players[id] {
+            player.updateMedia(url: url)
+        } else {
+            let player = ScreenPlayer(fileURL: url, screen: screen)
+            player.setVolume(0)
+            players[id] = player
+        }
+    }
+
+    private func showAll() {
+        players.forEach { id, player in
+            guard !pausedScreens.contains(id) else { return }
+            player.window?.orderBack(nil)
+        }
+    }
+
+    private func startKeepVisibleTimer() {
+        keepVisibleTimer?.invalidate()
+        keepVisibleTimer = Timer.scheduledTimer(withTimeInterval: keepVisibleInterval, repeats: true) { [weak self] _ in
+            self?.showAll()
+        }
+    }
+
+    private func stopKeepVisibleTimer() {
+        keepVisibleTimer?.invalidate()
+        keepVisibleTimer = nil
+    }
+
+    private func startBatteryCheckTimer() {
+        guard batteryCheckTimer == nil else { return }
+        batteryCheckTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+            self?.checkPlaybackState()
+        }
+    }
+
+    private func stopBatteryCheckTimer() {
+        batteryCheckTimer?.invalidate()
+        batteryCheckTimer = nil
+    }
+
+    private func shouldPauseForLowBattery() -> Bool {
+        guard let battery = currentBatterySnapshot() else { return false }
+        return !battery.isCharging && battery.level <= lowBatteryPauseThreshold
+    }
+
+    private func currentBatterySnapshot() -> (level: Int, isCharging: Bool)? {
+        guard let snapshot = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
+              let list = IOPSCopyPowerSourcesList(snapshot)?.takeRetainedValue() as? [CFTypeRef],
+              let source = list.first,
+              let info = IOPSGetPowerSourceDescription(snapshot, source)?.takeUnretainedValue() as? [String: Any]
+        else {
+            return nil
+        }
+
+        guard let currentCapacity = info[kIOPSCurrentCapacityKey as String] as? Int,
+              let maxCapacity = info[kIOPSMaxCapacityKey as String] as? Int,
+              maxCapacity > 0
+        else {
+            return nil
+        }
+
+        let percentage = Int((Double(currentCapacity) / Double(maxCapacity) * 100).rounded())
+        let isCharging = (info[kIOPSIsChargingKey as String] as? Bool) == true
+            || (info[kIOPSPowerSourceStateKey as String] as? String) == (kIOPSACPowerValue as String)
+        return (level: percentage, isCharging: isCharging)
+    }
+
+    private func resumeAll() {
+        players.forEach { id, player in
+            guard !pausedScreens.contains(id) else { return }
+            player.resumePlayback()
+        }
+    }
+
+    private func pauseAll() {
+        players.values.forEach { $0.pausePlayback() }
     }
 }

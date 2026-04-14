@@ -11,7 +11,7 @@ A lightweight video and image wallpaper application for macOS.
 - **Rotation Mode**: Select a folder to automatically cycle through wallpapers
 - **Playlist Previews**: Interactive grid view with live previews of the currently selected item
 - **Shuffle Mode**: Randomize wallpaper rotation order
-- **Battery Saver**: Intelligent energy-saving mode. Automatically pauses playback when the desktop is hidden, another app is active, or the **laptop lid is closed**
+- **Battery Saver**: Automatically pauses wallpaper playback when battery level is at or below 20% and not charging
 - Multi-display support with independent wallpaper per screen
 - Video wallpaper with automatic loop playback
 - Recent wallpapers history for quick switching (Supports folders)
@@ -75,7 +75,7 @@ Requirements: macOS 12.0+, Xcode Command Line Tools
 - **Open SakuraWallpaper** - Open main window
 - **Status: Live/Paused/None** - Real-time informational readout
 - **Pause Playback** - Manual toggle for all wallpapers
-- **Battery Saver** - Toggle automatic energy-saving logic
+- **Battery Saver** - Pause automatically when battery is low (<=20%) and not charging
 - **Next Wallpaper** (Shortcut: `n`) - Skip to the next item in the rotation
 - **Clear Wallpaper** - Reset and remove current selection
 - **Per-Screen Pause** - Pause/resume individual screens

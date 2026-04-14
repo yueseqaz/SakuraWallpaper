@@ -1,6 +1,10 @@
 import Cocoa
 
 class AboutWindowController: NSWindowController {
+    private var appVersionText: String {
+        let shortVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.1"
+        return "V\(shortVersion)"
+    }
     
     convenience init() {
         let window = NSWindow(
@@ -34,7 +38,7 @@ class AboutWindowController: NSWindowController {
         appName.frame = NSRect(x: 0, y: 260, width: 320, height: 28)
         contentView.addSubview(appName)
         
-        let version = NSTextField(labelWithString: "about.version".localized("0.1.0"))
+        let version = NSTextField(labelWithString: "about.version".localized(appVersionText))
         version.font = NSFont.systemFont(ofSize: 12)
         version.textColor = .secondaryLabelColor
         version.alignment = .center

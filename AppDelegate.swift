@@ -18,7 +18,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         mainWindow = MainWindowController(wallpaperManager: wallpaperManager)
         setupStatusBar()
 
-        if SettingsManager.shared.isFolderMode,
+        let screenFolderConfigs = SettingsManager.shared.screenFolderConfigs
+        if !screenFolderConfigs.isEmpty {
+            for screen in NSScreen.screens {
+                let id = SettingsManager.screenIdentifier(screen)
+                guard let config = screenFolderConfigs[id],
+                      FileManager.default.fileExists(atPath: config.folderPath) else { continue }
+                wallpaperManager.setFolder(url: URL(fileURLWithPath: config.folderPath), for: screen, config: config)
+            }
+        } else if SettingsManager.shared.isFolderMode,
            let folderPath = SettingsManager.shared.folderPath,
            FileManager.default.fileExists(atPath: folderPath) {
             let url = URL(fileURLWithPath: folderPath)
@@ -260,6 +268,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         SettingsManager.shared.wallpaperPath = nil
         SettingsManager.shared.isFolderMode = false
         SettingsManager.shared.folderPath = nil
+        SettingsManager.shared.clearAllFolderConfigs()
         mainWindow.updateUI()
         rebuildRecentMenu()
     }
@@ -303,7 +312,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 stateLabel = "ui.pausedAuto".localized
             }
             
-            let isRotating = SettingsManager.shared.isFolderMode && SettingsManager.shared.isRotationEnabled
+            let hasScreenFolders = !SettingsManager.shared.screenFolderConfigs.isEmpty
+            let isRotating = (SettingsManager.shared.isFolderMode && SettingsManager.shared.isRotationEnabled) || hasScreenFolders
             let shuffleIcon = (isRotating && SettingsManager.shared.isShuffleMode) ? "🔀 " : ""
             
             if isRotating, let folderPath = SettingsManager.shared.folderPath {
@@ -338,7 +348,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         if menuItem.action == #selector(nextWallpaper) {
-            return SettingsManager.shared.isFolderMode
+            return SettingsManager.shared.isFolderMode || !SettingsManager.shared.screenFolderConfigs.isEmpty
         }
         return true
     }
@@ -352,7 +362,7 @@ extension AppDelegate: NSMenuDelegate {
         updatePauseItem()
         updateAutoPauseItem()
         
-        if SettingsManager.shared.isFolderMode {
+        if SettingsManager.shared.isFolderMode || !SettingsManager.shared.screenFolderConfigs.isEmpty {
             nextMenuItem.title = "menu.nextWallpaper".localized
         } else {
             nextMenuItem.title = "\("menu.nextWallpaper".localized) (\("ui.folderMode".localized) \("ui.notSet".localized))"
