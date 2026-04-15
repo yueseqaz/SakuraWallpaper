@@ -285,6 +285,21 @@ class WallpaperManager {
                 continue
             }
 
+            if SettingsManager.shared.isFolderMode,
+               let globalFolderPath = SettingsManager.shared.folderPath,
+               FileManager.default.fileExists(atPath: globalFolderPath) {
+                let fallbackConfig = ScreenFolderConfig(
+                    folderPath: globalFolderPath,
+                    rotationIntervalMinutes: SettingsManager.shared.rotationIntervalMinutes,
+                    isShuffleMode: SettingsManager.shared.isShuffleMode,
+                    isRotationEnabled: SettingsManager.shared.isRotationEnabled,
+                    includeSubfolders: SettingsManager.shared.includeSubfolders
+                )
+                let folderURL = URL(fileURLWithPath: globalFolderPath)
+                setFolder(url: folderURL, for: screen, config: fallbackConfig)
+                continue
+            }
+
             if let url = urlForScreen(screen) {
                 createOrUpdatePlayer(for: screen, url: url)
                 currentFiles[id] = url
