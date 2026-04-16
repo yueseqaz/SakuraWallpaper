@@ -64,13 +64,13 @@ Requirements: macOS 12.0+, Xcode Command Line Tools
 
 ## Usage
 
-1. Click **Pick File** to set a single wallpaper, or **Pick Folder** to enable rotation mode
+1. **Drag** a wallpaper file/folder into the preview area, or **click the preview area** to choose in Finder
 2. Use the **Interval** stepper to set how often the wallpaper changes (in Rotation Mode)
 3. Enable **Shuffle** for randomized order
 4. Toggle **Battery Saver** to optimize energy usage while working in other apps or when the screen is off
-5. Use the screen dropdown to switch between displays (or **All Screens** for global control)
-6. Click **Sync All Screens** to push your current selection to every monitor
-7. Click **Clear** to remove wallpaper from the selected screen
+5. Use the screen dropdown to switch displays (the dropdown lists concrete screens only)
+6. Click **Sync All Screens** to apply the current screen configuration to all monitors
+7. Click **Clear then Repick** to clear current wallpaper and choose a new one
 8. Right-click the status bar icon for quick controls
 
 ### System Desktop Sync Behavior
@@ -88,11 +88,10 @@ Requirements: macOS 12.0+, Xcode Command Line Tools
 
 - **Open SakuraWallpaper** - Open main window
 - **Status: Live/Manually Paused/Low Battery Auto Paused/None** - Real-time informational readout
-- **Pause Playback** - Manual toggle for all wallpapers
+- **Pause** - Submenu with `All Screens` and per-screen pause/resume actions
 - **Battery Saver** - Enable low-battery auto pause (<=20% and not charging)
 - **Next Wallpaper** - Includes `All Screens` plus per-screen next actions (shortcut `n` applies to all screens)
 - **Clear Wallpaper** - Reset and remove current selection
-- **Per-Screen Pause** - Pause/resume individual screens
 - **Recent** - Quick switch to previous wallpapers or folders
 - **Language** - Switch between English and Chinese
 - **Clear History** - Clear wallpaper history

@@ -8,10 +8,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var recentMenu: NSMenu!
     var aboutWindow: AboutWindowController?
     var pauseItem: NSMenuItem!
+    var pauseMenu: NSMenu!
+    var pauseAllItem: NSMenuItem!
     var autoPauseItem: NSMenuItem!
     var nextMenuItem: NSMenuItem!
     var nextWallpaperMenu: NSMenu!
-    var screenPauseMenu: NSMenu!
     var languageMenu: NSMenu!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -79,8 +80,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         statusMenuItem.isEnabled = false
         menu.addItem(statusMenuItem)
 
-        pauseItem = NSMenuItem(title: "menu.pauseAll".localized, action: #selector(togglePause), keyEquivalent: "p")
-        pauseItem.target = self
+        pauseMenu = NSMenu(title: "menu.pause".localized)
+        pauseItem = NSMenuItem(title: "menu.pause".localized, action: nil, keyEquivalent: "")
+        pauseItem.submenu = pauseMenu
         menu.addItem(pauseItem)
 
         nextWallpaperMenu = NSMenu(title: "menu.nextWallpaper".localized)
@@ -97,11 +99,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         autoPauseItem = NSMenuItem(title: "menu.autoPause".localized, action: #selector(toggleAutoPause), keyEquivalent: "")
         autoPauseItem.target = self
         menu.addItem(autoPauseItem)
-
-        screenPauseMenu = NSMenu(title: "menu.pauseScreen".localized)
-        let screenPauseItem = NSMenuItem(title: "menu.pauseScreen".localized, action: nil, keyEquivalent: "")
-        screenPauseItem.submenu = screenPauseMenu
-        menu.addItem(screenPauseItem)
 
         languageMenu = NSMenu(title: "menu.language".localized)
         let languageItem = NSMenuItem(title: "menu.language".localized, action: nil, keyEquivalent: "")
@@ -206,25 +203,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         rebuildRecentMenu()
     }
 
-    private func rebuildScreenPauseMenu() {
-        screenPauseMenu.removeAllItems()
-        for (index, screen) in NSScreen.screens.enumerated() {
-            let displayName: String
-            if #available(macOS 10.15, *) {
-                displayName = screen.localizedName
-            } else {
-                displayName = "screen.display".localized(index + 1)
-            }
-            let isPaused = wallpaperManager.isScreenPaused(screen)
-            let suffix = isPaused ? " - \("menu.resume".localized)" : " - \("menu.pause".localized)"
-            let item = NSMenuItem(title: "\(displayName)\(suffix)", action: #selector(toggleScreenPause(_:)), keyEquivalent: "")
-            item.representedObject = screen
-            item.target = self
-            item.state = isPaused ? .on : .off
-            screenPauseMenu.addItem(item)
-        }
-    }
-
     private func rebuildNextWallpaperMenu() {
         nextWallpaperMenu.removeAllItems()
 
@@ -281,17 +259,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         alert.runModal()
     }
 
-    @objc func toggleScreenPause(_ sender: NSMenuItem) {
-        guard let screen = sender.representedObject as? NSScreen else { return }
-        if wallpaperManager.isScreenPaused(screen) {
-            wallpaperManager.resumeScreen(screen)
-        } else {
-            wallpaperManager.pauseScreen(screen)
-        }
-        rebuildScreenPauseMenu()
-        mainWindow.updateUI()
-    }
-
     @objc func openMain() {
         mainWindow.updateUI()
         mainWindow.showWindow(nil)
@@ -302,6 +269,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func stopWallpaper() {
         wallpaperManager.stopAll()
         SettingsManager.shared.wallpaperPath = nil
+        SettingsManager.shared.clearScreenWallpapers()
         SettingsManager.shared.isFolderMode = false
         SettingsManager.shared.folderPath = nil
         SettingsManager.shared.clearAllFolderConfigs()
@@ -309,13 +277,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         rebuildRecentMenu()
     }
 
-    @objc func togglePause() {
+    @objc func togglePauseAllFromMenu() {
         if wallpaperManager.isPaused {
             wallpaperManager.resume()
         } else {
             wallpaperManager.pause()
         }
         updatePauseItem()
+        mainWindow.updateUI()
+    }
+
+    @objc func togglePauseForScreen(_ sender: NSMenuItem) {
+        guard let screen = sender.representedObject as? NSScreen else { return }
+        if wallpaperManager.isScreenPaused(screen) {
+            wallpaperManager.resumeScreen(screen)
+        } else {
+            wallpaperManager.pauseScreen(screen)
+        }
         mainWindow.updateUI()
     }
 
@@ -326,8 +304,37 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         mainWindow.updateUI()
     }
 
+    private func rebuildPauseMenu() {
+        pauseMenu.removeAllItems()
+
+        let allSuffix = wallpaperManager.isPaused ? " - \("menu.resume".localized)" : " - \("menu.pause".localized)"
+        pauseAllItem = NSMenuItem(title: "\("ui.allScreens".localized)\(allSuffix)", action: #selector(togglePauseAllFromMenu), keyEquivalent: "p")
+        pauseAllItem.target = self
+        pauseAllItem.state = wallpaperManager.isPaused ? .on : .off
+        pauseAllItem.isEnabled = wallpaperManager.isActive
+        pauseMenu.addItem(pauseAllItem)
+        pauseMenu.addItem(.separator())
+
+        for (index, screen) in NSScreen.screens.enumerated() {
+            let displayName: String
+            if #available(macOS 10.15, *) {
+                displayName = screen.localizedName
+            } else {
+                displayName = "screen.display".localized(index + 1)
+            }
+            let isPaused = wallpaperManager.isScreenPaused(screen)
+            let suffix = isPaused ? " - \("menu.resume".localized)" : " - \("menu.pause".localized)"
+            let item = NSMenuItem(title: "\(displayName)\(suffix)", action: #selector(togglePauseForScreen(_:)), keyEquivalent: "")
+            item.representedObject = screen
+            item.target = self
+            item.state = isPaused ? .on : .off
+            item.isEnabled = wallpaperManager.isActive
+            pauseMenu.addItem(item)
+        }
+    }
+
     private func updatePauseItem() {
-        pauseItem.title = wallpaperManager.isPaused ? "menu.resume".localized : "menu.pause".localized
+        pauseItem.title = "menu.pause".localized
         pauseItem.isEnabled = wallpaperManager.isActive
     }
 
@@ -406,7 +413,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 extension AppDelegate: NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
         rebuildRecentMenu()
-        rebuildScreenPauseMenu()
+        rebuildPauseMenu()
         rebuildNextWallpaperMenu()
         rebuildLanguageMenu()
         updatePauseItem()

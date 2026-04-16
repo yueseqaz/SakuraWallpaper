@@ -42,6 +42,12 @@
 "ui.image" = "Image";
 "ui.dropHere" = "Drop or Pick a Wallpaper";
 "ui.formats" = "Supports MP4, MOV, GIF, PNG, JPG, WebP";
+"ui.tapToPick" = "Click this area to pick a file or folder in Finder";
+"ui.pickHint" = "Drag or click the area above to choose wallpaper in Finder";
+"ui.repickGuide" = "Want to change wallpaper? Click \"Clear then Repick\" on the right, then choose above";
+"ui.clearThenRepick" = "Clear then Repick";
+"ui.clearThenPickScreen" = "Clear then repick (Screen)";
+"ui.clearThenPickAll" = "Clear then repick (All)";
 "ui.loadingPreview" = "Loading preview...";
 "ui.folderItems" = "Items: %d (%@)";
 "ui.recursiveEnabled" = "recursive";
