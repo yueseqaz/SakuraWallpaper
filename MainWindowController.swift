@@ -68,8 +68,9 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private var fileTypeLabel: NSTextField!
     private var statusIndicator: NSView!
     private var statusLabel: NSTextField!
+    private var selectFileButton: NSButton!
+    private var selectFolderButton: NSButton!
     private var stopButton: NSButton!
-    private var controlsHintLabel: NSTextField!
     private var applyAllButton: NSButton!
     private var launchSwitch: NSButton!
     private var pauseSwitch: NSButton!
@@ -106,7 +107,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         window.title = "app.name".localized
         window.center()
         window.isReleasedWhenClosed = false
-        window.backgroundColor = NSColor(calibratedRed: 0.92, green: 0.96, blue: 0.94, alpha: 1)
+        window.backgroundColor = NSColor.windowBackgroundColor
         setupUI()
     }
 
@@ -115,7 +116,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private func setupUI() {
         guard let contentView = window?.contentView else { return }
         contentView.wantsLayer = true
-        contentView.layer?.backgroundColor = NSColor(calibratedRed: 0.93, green: 0.97, blue: 0.95, alpha: 1).cgColor
+        contentView.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
 
         contentView.addSubview(createHeader())
         contentView.addSubview(createScreenSelector())
@@ -148,7 +149,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private func createHeader() -> NSView {
         let header = NSView(frame: NSRect(x: 0, y: 660, width: 500, height: 60))
         header.wantsLayer = true
-        header.layer?.backgroundColor = NSColor(calibratedRed: 0.89, green: 0.95, blue: 0.92, alpha: 1).cgColor
+        header.layer?.backgroundColor = NSColor.clear.cgColor
 
         let appIcon = NSTextField(labelWithString: "🌸")
         appIcon.font = NSFont.systemFont(ofSize: 30)
@@ -158,7 +159,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
         let title = NSTextField(labelWithString: "app.name".localized)
         title.font = NSFont(name: "Avenir Next Demi Bold", size: 22) ?? NSFont.systemFont(ofSize: 22, weight: .semibold)
-        title.textColor = NSColor(calibratedRed: 0.16, green: 0.25, blue: 0.23, alpha: 1)
+        title.textColor = .labelColor
         title.frame = NSRect(x: 58, y: 15, width: 250, height: 28)
         header.addSubview(title)
 
@@ -178,37 +179,33 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
         let separator = NSView(frame: NSRect(x: 0, y: 0, width: 500, height: 1))
         separator.wantsLayer = true
-        separator.layer?.backgroundColor = NSColor(calibratedRed: 0.77, green: 0.86, blue: 0.82, alpha: 1).cgColor
+        separator.layer?.backgroundColor = NSColor.separatorColor.cgColor
         header.addSubview(separator)
 
         return header
     }
 
     private func createScreenSelector() -> NSView {
-        let container = NSView(frame: NSRect(x: 20, y: 604, width: 460, height: 50))
+        let container = NSView(frame: NSRect(x: 20, y: 610, width: 460, height: 40))
         container.wantsLayer = true
-        container.layer?.cornerRadius = 14
-        container.layer?.backgroundColor = NSColor(calibratedRed: 0.96, green: 0.985, blue: 0.975, alpha: 0.95).cgColor
-        container.layer?.borderColor = NSColor(calibratedRed: 0.75, green: 0.87, blue: 0.82, alpha: 1).cgColor
-        container.layer?.borderWidth = 1
+        container.layer?.cornerRadius = 8
+        container.layer?.backgroundColor = NSColor.clear.cgColor
 
         let label = NSTextField(labelWithString: "\("ui.screen".localized):")
-        label.font = NSFont(name: "Avenir Next Demi Bold", size: 15) ?? NSFont.systemFont(ofSize: 15, weight: .semibold)
-        label.textColor = NSColor(calibratedRed: 0.20, green: 0.30, blue: 0.27, alpha: 1)
-        label.frame = NSRect(x: 12, y: 15, width: 64, height: 20)
+        label.font = NSFont.systemFont(ofSize: 12, weight: .medium)
+        label.textColor = .labelColor
+        label.frame = NSRect(x: 0, y: 10, width: 60, height: 20)
         container.addSubview(label)
 
-        screenPopUp = NSPopUpButton(frame: NSRect(x: 80, y: 10, width: 240, height: 30))
-        screenPopUp.font = NSFont(name: "Avenir Next Medium", size: 13) ?? NSFont.systemFont(ofSize: 13, weight: .medium)
+        screenPopUp = NSPopUpButton(frame: NSRect(x: 65, y: 8, width: 240, height: 25))
         screenPopUp.target = self
         screenPopUp.action = #selector(screenSelectionChanged)
         container.addSubview(screenPopUp)
 
         applyAllButton = NSButton(title: "ui.applyToAll".localized, target: self, action: #selector(applyToAllScreens))
         applyAllButton.bezelStyle = .rounded
-        applyAllButton.font = NSFont(name: "Avenir Next Demi Bold", size: 12) ?? NSFont.systemFont(ofSize: 12, weight: .semibold)
-        applyAllButton.frame = NSRect(x: 332, y: 10, width: 116, height: 30)
-        applyAllButton.contentTintColor = NSColor(calibratedRed: 0.25, green: 0.47, blue: 0.42, alpha: 1)
+        applyAllButton.font = NSFont.systemFont(ofSize: 12)
+        applyAllButton.frame = NSRect(x: 315, y: 8, width: 130, height: 25)
         container.addSubview(applyAllButton)
 
         updateScreenMenu()
@@ -266,15 +263,15 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private func createPreviewContainer() -> NSView {
         previewContainer = DragDropContainerView(frame: NSRect(x: 20, y: 320, width: 460, height: 280))
         previewContainer.wantsLayer = true
-        previewContainer.layer?.cornerRadius = 20
-        previewContainer.layer?.backgroundColor = NSColor(calibratedRed: 0.96, green: 0.985, blue: 0.975, alpha: 1).cgColor
-        previewContainer.layer?.borderColor = NSColor(calibratedRed: 0.76, green: 0.88, blue: 0.83, alpha: 1).cgColor
+        previewContainer.layer?.cornerRadius = 16
+        previewContainer.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
+        previewContainer.layer?.borderColor = NSColor.separatorColor.cgColor
         previewContainer.layer?.borderWidth = 1
         previewContainer.layer?.masksToBounds = true
         previewContainer.layer?.shadowColor = NSColor.black.cgColor
-        previewContainer.layer?.shadowOpacity = 0.12
-        previewContainer.layer?.shadowRadius = 18
-        previewContainer.layer?.shadowOffset = NSSize(width: 0, height: -6)
+        previewContainer.layer?.shadowOpacity = 0.10
+        previewContainer.layer?.shadowRadius = 8
+        previewContainer.layer?.shadowOffset = NSSize(width: 0, height: -2)
         previewContainer.canAcceptDrop = { [weak self] url in
             self?.isAcceptableDropURL(url) ?? false
         }
@@ -288,7 +285,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
         dropZone = NSView(frame: previewContainer.bounds)
         dropZone.wantsLayer = true
-        dropZone.layer?.backgroundColor = NSColor(calibratedRed: 0.95, green: 0.98, blue: 0.97, alpha: 0.95).cgColor
+        dropZone.layer?.backgroundColor = NSColor.controlBackgroundColor.withAlphaComponent(0.95).cgColor
 
         dropIconView = NSImageView(frame: NSRect(x: 0, y: 152, width: 460, height: 44))
         dropIconView.imageAlignment = .alignCenter
@@ -296,7 +293,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         if #available(macOS 11.0, *) {
             dropIconView.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 44, weight: .regular)
             dropIconView.image = NSImage(systemSymbolName: "folder.badge.plus", accessibilityDescription: nil)
-            dropIconView.contentTintColor = NSColor(calibratedRed: 0.36, green: 0.62, blue: 0.55, alpha: 1)
+            dropIconView.contentTintColor = NSColor.systemTeal
         } else {
             dropIconView.image = NSImage(named: NSImage.folderName)
         }
@@ -304,27 +301,27 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
         dropLabel = NSTextField(labelWithString: "ui.dropHere".localized)
         dropLabel.font = NSFont(name: "Avenir Next Demi Bold", size: 14) ?? NSFont.systemFont(ofSize: 13, weight: .semibold)
-        dropLabel.textColor = NSColor(calibratedRed: 0.19, green: 0.29, blue: 0.26, alpha: 1)
+        dropLabel.textColor = .labelColor
         dropLabel.alignment = .center
         dropLabel.frame = NSRect(x: 0, y: 108, width: 460, height: 34)
         dropZone.addSubview(dropLabel)
 
         dropFormatsLabel = NSTextField(labelWithString: "ui.formats".localized)
         dropFormatsLabel.font = NSFont(name: "Avenir Next Medium", size: 10) ?? NSFont.systemFont(ofSize: 10)
-        dropFormatsLabel.textColor = NSColor(calibratedRed: 0.40, green: 0.53, blue: 0.49, alpha: 1)
+        dropFormatsLabel.textColor = .secondaryLabelColor
         dropFormatsLabel.alignment = .center
         dropFormatsLabel.frame = NSRect(x: 0, y: 92, width: 460, height: 16)
         dropZone.addSubview(dropFormatsLabel)
 
         dropTapHintLabel = NSTextField(labelWithString: "ui.tapToPick".localized)
         dropTapHintLabel.font = NSFont(name: "Avenir Next Medium", size: 11) ?? NSFont.systemFont(ofSize: 11, weight: .medium)
-        dropTapHintLabel.textColor = NSColor(calibratedRed: 0.35, green: 0.53, blue: 0.48, alpha: 1)
+        dropTapHintLabel.textColor = .secondaryLabelColor
         dropTapHintLabel.alignment = .center
         dropTapHintLabel.frame = NSRect(x: 0, y: 72, width: 460, height: 18)
         dropZone.addSubview(dropTapHintLabel)
 
-        let clickRecognizer = NSClickGestureRecognizer(target: self, action: #selector(selectFromPreviewArea))
-        previewContainer.addGestureRecognizer(clickRecognizer)
+        let clickRecognizer = NSClickGestureRecognizer(target: self, action: #selector(selectFromDropZone))
+        dropZone.addGestureRecognizer(clickRecognizer)
 
         previewContainer.addSubview(dropZone)
 
@@ -392,9 +389,9 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private func createInfoBar() -> NSView {
         let bar = NSView(frame: NSRect(x: 20, y: 280, width: 460, height: 30))
         bar.wantsLayer = true
-        bar.layer?.cornerRadius = 12
-        bar.layer?.backgroundColor = NSColor(calibratedRed: 0.965, green: 0.988, blue: 0.978, alpha: 1).cgColor
-        bar.layer?.borderColor = NSColor(calibratedRed: 0.78, green: 0.88, blue: 0.84, alpha: 1).cgColor
+        bar.layer?.cornerRadius = 8
+        bar.layer?.backgroundColor = NSColor.clear.cgColor
+        bar.layer?.borderColor = NSColor.clear.cgColor
         bar.layer?.borderWidth = 1
 
         fileNameLabel = NSTextField(labelWithString: "ui.noWallpaper".localized)
@@ -414,35 +411,26 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     }
 
     private func createControls() -> NSView {
-        let controls = NSView(frame: NSRect(x: 20, y: 214, width: 460, height: 56))
+        let controls = NSView(frame: NSRect(x: 20, y: 220, width: 460, height: 50))
         controls.wantsLayer = true
-        controls.layer?.cornerRadius = 15
-        controls.layer?.backgroundColor = NSColor(calibratedRed: 0.965, green: 0.988, blue: 0.978, alpha: 1).cgColor
-        controls.layer?.borderColor = NSColor(calibratedRed: 0.76, green: 0.88, blue: 0.83, alpha: 1).cgColor
-        controls.layer?.borderWidth = 1
-        controls.layer?.shadowColor = NSColor.black.cgColor
-        controls.layer?.shadowOpacity = 0.08
-        controls.layer?.shadowRadius = 8
-        controls.layer?.shadowOffset = NSSize(width: 0, height: -2)
+        controls.layer?.cornerRadius = 8
+        controls.layer?.backgroundColor = NSColor.clear.cgColor
 
-        let accent = NSView(frame: NSRect(x: 12, y: 14, width: 4, height: 28))
-        accent.wantsLayer = true
-        accent.layer?.cornerRadius = 2
-        accent.layer?.backgroundColor = NSColor(calibratedRed: 0.43, green: 0.75, blue: 0.68, alpha: 1).cgColor
-        controls.addSubview(accent)
+        selectFileButton = NSButton(title: "ui.selectFile".localized, target: self, action: #selector(selectFile))
+        selectFileButton.bezelStyle = .rounded
+        selectFileButton.frame = NSRect(x: 0, y: 5, width: 110, height: 40)
+        controls.addSubview(selectFileButton)
 
-        controlsHintLabel = NSTextField(wrappingLabelWithString: "ui.pickHint".localized)
-        controlsHintLabel.font = NSFont(name: "Avenir Next Medium", size: 11) ?? NSFont.systemFont(ofSize: 11)
-        controlsHintLabel.textColor = NSColor(calibratedRed: 0.21, green: 0.31, blue: 0.28, alpha: 1)
-        controlsHintLabel.frame = NSRect(x: 22, y: 12, width: 280, height: 32)
-        controls.addSubview(controlsHintLabel)
+        selectFolderButton = NSButton(title: "ui.selectFolder".localized, target: self, action: #selector(selectFolder))
+        selectFolderButton.bezelStyle = .rounded
+        selectFolderButton.frame = NSRect(x: 115, y: 5, width: 110, height: 40)
+        controls.addSubview(selectFolderButton)
 
         stopButton = NSButton(title: "ui.stopWallpaper".localized, target: self, action: #selector(stopWallpaper))
         stopButton.bezelStyle = .rounded
         stopButton.controlSize = .regular
         stopButton.font = NSFont(name: "Avenir Next Demi Bold", size: 13) ?? NSFont.systemFont(ofSize: 13, weight: .semibold)
-        stopButton.frame = NSRect(x: 314, y: 11, width: 134, height: 34)
-        stopButton.contentTintColor = NSColor(calibratedRed: 0.94, green: 0.47, blue: 0.38, alpha: 1)
+        stopButton.frame = NSRect(x: 230, y: 5, width: 180, height: 40)
         controls.addSubview(stopButton)
 
         return controls
@@ -451,9 +439,9 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private func createSettings() -> NSView {
         let settings = NSView(frame: NSRect(x: 20, y: 50, width: 460, height: 160))
         settings.wantsLayer = true
-        settings.layer?.cornerRadius = 14
-        settings.layer?.backgroundColor = NSColor(calibratedRed: 0.965, green: 0.988, blue: 0.978, alpha: 1).cgColor
-        settings.layer?.borderColor = NSColor(calibratedRed: 0.78, green: 0.88, blue: 0.84, alpha: 1).cgColor
+        settings.layer?.cornerRadius = 8
+        settings.layer?.backgroundColor = NSColor.clear.cgColor
+        settings.layer?.borderColor = NSColor.clear.cgColor
         settings.layer?.borderWidth = 1
 
         launchSwitch = NSButton(checkboxWithTitle: "ui.launchAtLogin".localized,
@@ -578,7 +566,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
         let separator = NSView(frame: NSRect(x: 20, y: 35, width: 460, height: 1))
         separator.wantsLayer = true
-        separator.layer?.backgroundColor = NSColor(calibratedRed: 0.77, green: 0.87, blue: 0.83, alpha: 1).cgColor
+        separator.layer?.backgroundColor = NSColor.separatorColor.cgColor
         footer.addSubview(separator)
 
         let author = NSTextField(labelWithString: "ui.madeBy".localized("❤️"))
@@ -605,12 +593,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         openPicker(panel: panel)
     }
 
-    @objc private func selectFromPreviewArea(_ sender: NSClickGestureRecognizer) {
-        let point = sender.location(in: previewContainer)
-        // Keep folder thumbnail selection intact.
-        if !scrollView.isHidden && scrollView.frame.contains(point) {
-            return
-        }
+    @objc private func selectFromDropZone() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
         panel.canChooseDirectories = true
@@ -872,21 +855,21 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private func setDropHighlight(active: Bool) {
         guard dropZone.isHidden == false else { return }
         previewContainer.layer?.borderColor = active
-            ? NSColor(calibratedRed: 0.31, green: 0.69, blue: 0.60, alpha: 1).cgColor
-            : NSColor(calibratedRed: 0.76, green: 0.88, blue: 0.83, alpha: 1).cgColor
+            ? NSColor.systemBlue.cgColor
+            : NSColor.separatorColor.cgColor
         dropLabel.textColor = active
-            ? NSColor(calibratedRed: 0.14, green: 0.40, blue: 0.34, alpha: 1)
-            : NSColor(calibratedRed: 0.19, green: 0.29, blue: 0.26, alpha: 1)
+            ? NSColor.systemBlue
+            : .labelColor
         dropFormatsLabel.textColor = active
-            ? NSColor(calibratedRed: 0.20, green: 0.47, blue: 0.40, alpha: 1)
-            : NSColor(calibratedRed: 0.40, green: 0.53, blue: 0.49, alpha: 1)
+            ? NSColor.systemBlue
+            : .secondaryLabelColor
         dropTapHintLabel.textColor = active
-            ? NSColor(calibratedRed: 0.21, green: 0.50, blue: 0.42, alpha: 1)
-            : NSColor(calibratedRed: 0.35, green: 0.53, blue: 0.48, alpha: 1)
+            ? NSColor.systemBlue
+            : .secondaryLabelColor
         if #available(macOS 11.0, *) {
             dropIconView.contentTintColor = active
-                ? NSColor(calibratedRed: 0.21, green: 0.57, blue: 0.48, alpha: 1)
-                : NSColor(calibratedRed: 0.36, green: 0.62, blue: 0.55, alpha: 1)
+                ? NSColor.systemBlue
+                : NSColor.systemTeal
         }
     }
 
@@ -907,19 +890,13 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         wallpaperManager.setUIScreen(selectedScreen)
 
         let activeScreen = selectedScreen ?? NSScreen.main ?? NSScreen.screens.first
-        stopButton.title = "ui.clearThenRepick".localized
+        stopButton.title = "\("ui.stopWallpaper".localized) (\("ui.screen".localized))"
         stopButton.isEnabled = activeScreen.flatMap { wallpaperManager.wallpaperPath(for: $0) ?? SettingsManager.shared.wallpaperPath(for: $0) } != nil
             || activeScreen.flatMap { SettingsManager.shared.folderConfig(for: $0) } != nil
-        let hasSelection = stopButton.isEnabled
-        if hasSelection {
-            controlsHintLabel.stringValue = "ui.repickGuide".localized
-        } else {
-            controlsHintLabel.stringValue = "ui.pickHint".localized
-        }
         applyAllButton.isEnabled = (activeScreen != nil && NSScreen.screens.count > 1)
         
         let selectedFolderConfig = activeScreen.flatMap { SettingsManager.shared.folderConfig(for: $0) }
-        let isFolderMode = selectedFolderConfig != nil || SettingsManager.shared.isFolderMode
+        let isFolderMode = selectedFolderConfig != nil
         let isRotationEnabled = selectedFolderConfig?.isRotationEnabled ?? SettingsManager.shared.isRotationEnabled
         let isShuffleMode = selectedFolderConfig?.isShuffleMode ?? SettingsManager.shared.isShuffleMode
         let currentIncludeSubfolders = selectedFolderConfig?.includeSubfolders ?? SettingsManager.shared.includeSubfolders
@@ -939,11 +916,11 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         intervalStepper.isEnabled = isFolderMode && isRotationEnabled
         includeSubfoldersSwitch.state = currentIncludeSubfolders ? .on : .off
 
-        rotationSwitch.contentTintColor = isFolderMode ? nil : .disabledControlTextColor
-        shuffleSwitch.contentTintColor = (isFolderMode && isRotationEnabled) ? nil : .disabledControlTextColor
-        intervalPrefix.textColor = (isFolderMode && isRotationEnabled) ? .labelColor : .disabledControlTextColor
-        intervalLabel.textColor = (isFolderMode && isRotationEnabled) ? .secondaryLabelColor : .disabledControlTextColor
-        folderCountLabel.textColor = isFolderMode ? .secondaryLabelColor : .disabledControlTextColor
+        rotationSwitch.contentTintColor = isFolderMode ? nil : .tertiaryLabelColor
+        shuffleSwitch.contentTintColor = (isFolderMode && isRotationEnabled) ? nil : .tertiaryLabelColor
+        intervalPrefix.textColor = (isFolderMode && isRotationEnabled) ? .labelColor : .tertiaryLabelColor
+        intervalLabel.textColor = (isFolderMode && isRotationEnabled) ? .secondaryLabelColor : .tertiaryLabelColor
+        folderCountLabel.textColor = isFolderMode ? .secondaryLabelColor : .tertiaryLabelColor
         if isFolderMode {
             let recursive = currentIncludeSubfolders ? "ui.recursiveEnabled".localized : "ui.recursiveDisabled".localized
             folderCountLabel.stringValue = "ui.folderItems".localized(wallpaperManager.playlistItemCount, recursive)
@@ -1030,7 +1007,10 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         clearPreview()
         dropZone.isHidden = true
         
-        let isFolder = SettingsManager.shared.isFolderMode || selectedScreen.flatMap({ SettingsManager.shared.folderConfig(for: $0) }) != nil
+        let previewFolderConfig = (selectedScreen ?? NSScreen.main ?? NSScreen.screens.first).flatMap {
+            SettingsManager.shared.folderConfig(for: $0)
+        }
+        let isFolder = previewFolderConfig != nil
         
         if isFolder {
             scrollView.isHidden = false

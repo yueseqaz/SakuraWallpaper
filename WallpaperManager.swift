@@ -642,8 +642,11 @@ class WallpaperManager {
     }
 
     private func uiOrFirstPlaylistScreenID() -> String? {
-        if let id = uiScreenID, playlistsByScreen[id] != nil {
-            return id
+        // Keep playlist/thumbnail data strictly bound to the UI-selected screen.
+        // If the selected screen has no folder playlist, return nil instead of
+        // falling back to another screen's playlist.
+        if let id = uiScreenID {
+            return playlistsByScreen[id] != nil ? id : nil
         }
         return playlistsByScreen.keys.sorted().first
     }
