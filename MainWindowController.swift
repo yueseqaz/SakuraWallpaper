@@ -99,7 +99,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         self.wallpaperManager = wallpaperManager
         self.selectedScreen = NSScreen.main
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 500, height: 720),
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 746),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
@@ -157,7 +157,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     }
 
     private func createHeader() -> NSView {
-        let header = NSView(frame: NSRect(x: 0, y: 660, width: 500, height: 60))
+        let header = NSView(frame: NSRect(x: 0, y: 686, width: 500, height: 60))
         header.wantsLayer = true
         header.layer?.backgroundColor = NSColor.clear.cgColor
 
@@ -196,7 +196,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     }
 
     private func createScreenSelector() -> NSView {
-        let container = NSView(frame: NSRect(x: 20, y: 610, width: 460, height: 40))
+        let container = NSView(frame: NSRect(x: 20, y: 636, width: 460, height: 40))
         container.wantsLayer = true
         container.layer?.cornerRadius = 8
         container.layer?.backgroundColor = NSColor.clear.cgColor
@@ -293,7 +293,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     }
 
     private func createPreviewContainer() -> NSView {
-        previewContainer = DragDropContainerView(frame: NSRect(x: 20, y: 320, width: 460, height: 280))
+        previewContainer = DragDropContainerView(frame: NSRect(x: 20, y: 346, width: 460, height: 280))
         previewContainer.wantsLayer = true
         previewContainer.layer?.cornerRadius = 16
         previewContainer.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
@@ -419,7 +419,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     }
 
     private func createInfoBar() -> NSView {
-        let bar = NSView(frame: NSRect(x: 20, y: 280, width: 460, height: 30))
+        let bar = NSView(frame: NSRect(x: 20, y: 306, width: 460, height: 30))
         bar.wantsLayer = true
         bar.layer?.cornerRadius = 8
         bar.layer?.backgroundColor = NSColor.clear.cgColor
@@ -444,7 +444,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     }
 
     private func createControls() -> NSView {
-        let controls = NSView(frame: NSRect(x: 20, y: 220, width: 460, height: 50))
+        let controls = NSView(frame: NSRect(x: 20, y: 246, width: 460, height: 50))
         controls.wantsLayer = true
         controls.layer?.cornerRadius = 8
         controls.layer?.backgroundColor = NSColor.clear.cgColor
