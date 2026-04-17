@@ -27,6 +27,7 @@
 "ui.notSet" = "无";
 "ui.launchAtLogin" = "开机自启动";
 "ui.pauseWhenInvisible" = "省电模式";
+"ui.syncDesktopWallpaper" = "同步桌面壁纸";
 "ui.rotationInterval" = "轮播间隔";
 "ui.enableRotation" = "开启轮播";
 "ui.folderMode" = "轮播模式";

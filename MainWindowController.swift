@@ -74,6 +74,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private var applyAllButton: NSButton!
     private var launchSwitch: NSButton!
     private var pauseSwitch: NSButton!
+    private var syncDesktopSwitch: NSButton!
     private var rotationSwitch: NSButton!
     private var shuffleSwitch: NSButton!
     private var includeSubfoldersSwitch: NSButton!
@@ -469,7 +470,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     }
 
     private func createSettings() -> NSView {
-        let settings = NSView(frame: NSRect(x: 20, y: 50, width: 460, height: 160))
+        let settings = NSView(frame: NSRect(x: 20, y: 24, width: 460, height: 186))
         settings.wantsLayer = true
         settings.layer?.cornerRadius = 8
         settings.layer?.backgroundColor = NSColor.clear.cgColor
@@ -479,16 +480,23 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         launchSwitch = NSButton(checkboxWithTitle: "ui.launchAtLogin".localized,
                                 target: self, action: #selector(launchSwitchChanged))
         launchSwitch.font = NSFont.systemFont(ofSize: 12)
-        launchSwitch.frame = NSRect(x: 0, y: 130, width: 150, height: 20)
+        launchSwitch.frame = NSRect(x: 0, y: 156, width: 150, height: 20)
         launchSwitch.state = SettingsManager.shared.launchAtLogin ? .on : .off
         settings.addSubview(launchSwitch)
 
         pauseSwitch = NSButton(checkboxWithTitle: "ui.pauseWhenInvisible".localized,
                                target: self, action: #selector(pauseSwitchChanged))
         pauseSwitch.font = NSFont.systemFont(ofSize: 12)
-        pauseSwitch.frame = NSRect(x: 160, y: 130, width: 200, height: 20)
+        pauseSwitch.frame = NSRect(x: 160, y: 156, width: 200, height: 20)
         pauseSwitch.state = SettingsManager.shared.pauseWhenInvisible ? .on : .off
         settings.addSubview(pauseSwitch)
+
+        syncDesktopSwitch = NSButton(checkboxWithTitle: "ui.syncDesktopWallpaper".localized,
+                                     target: self, action: #selector(syncDesktopSwitchChanged))
+        syncDesktopSwitch.font = NSFont.systemFont(ofSize: 12)
+        syncDesktopSwitch.frame = NSRect(x: 0, y: 130, width: 300, height: 20)
+        syncDesktopSwitch.state = SettingsManager.shared.syncDesktopWallpaper ? .on : .off
+        settings.addSubview(syncDesktopSwitch)
 
         rotationSwitch = NSButton(checkboxWithTitle: "ui.enableRotation".localized,
                                   target: self, action: #selector(rotationSwitchChanged))
@@ -735,6 +743,10 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         SettingsManager.shared.pauseWhenInvisible = (sender.state == .on)
         wallpaperManager.checkPlaybackState()
     }
+
+    @objc func syncDesktopSwitchChanged(_ sender: NSButton) {
+        SettingsManager.shared.syncDesktopWallpaper = (sender.state == .on)
+    }
     
     @objc func inheritSourceChanged(_ sender: NSPopUpButton) {
         guard let value = sender.selectedItem?.representedObject as? String else { return }
@@ -936,6 +948,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         let currentIncludeSubfolders = selectedFolderConfig?.includeSubfolders ?? SettingsManager.shared.includeSubfolders
         let currentInterval = selectedFolderConfig?.rotationIntervalMinutes ?? SettingsManager.shared.rotationIntervalMinutes
         pauseSwitch.state = SettingsManager.shared.pauseWhenInvisible ? .on : .off
+        syncDesktopSwitch.state = SettingsManager.shared.syncDesktopWallpaper ? .on : .off
         intervalField.integerValue = currentInterval
         intervalStepper.integerValue = currentInterval
         intervalLabel.stringValue = formatInterval(minutes: currentInterval)

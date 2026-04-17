@@ -35,6 +35,7 @@ class SettingsManager {
     private let screenFolderConfigsKey = "sakurawallpaper_screen_folder_configs"
     private let newScreenInheritanceModeKey = "sakurawallpaper_new_screen_inheritance_mode"
     private let newScreenInheritanceScreenIdKey = "sakurawallpaper_new_screen_inheritance_screen_id"
+    private let syncDesktopWallpaperKey = "sakurawallpaper_sync_desktop_wallpaper"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -119,6 +120,14 @@ class SettingsManager {
     var pauseWhenInvisible: Bool {
         get { defaults.bool(forKey: pauseWhenInvisibleKey) }
         set { defaults.set(newValue, forKey: pauseWhenInvisibleKey) }
+    }
+
+    var syncDesktopWallpaper: Bool {
+        get {
+            if defaults.object(forKey: syncDesktopWallpaperKey) == nil { return true }
+            return defaults.bool(forKey: syncDesktopWallpaperKey)
+        }
+        set { defaults.set(newValue, forKey: syncDesktopWallpaperKey) }
     }
 
     var wallpaperHistory: [String] {

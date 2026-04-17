@@ -289,12 +289,14 @@ class WallpaperManager {
     }
 
     private func syncCurrentWallpaperToSystemDesktop() {
+        guard SettingsManager.shared.syncDesktopWallpaper else { return }
         for screen in NSScreen.screens {
             syncCurrentWallpaperToSystemDesktop(for: screen)
         }
     }
 
     private func syncCurrentWallpaperToSystemDesktop(for screen: NSScreen) {
+        guard SettingsManager.shared.syncDesktopWallpaper else { return }
         let id = SettingsManager.screenIdentifier(screen)
         if let player = players[id] {
             syncCurrentPlayerToSystemDesktop(player, for: screen, screenID: id)
