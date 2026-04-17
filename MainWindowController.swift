@@ -94,7 +94,6 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private var dropTapHintLabel: NSTextField!
     private var screenPopUp: NSPopUpButton!
     private var selectedScreen: NSScreen?
-    private var appearanceObservation: NSKeyValueObservation?
 
     init(wallpaperManager: WallpaperManager) {
         self.wallpaperManager = wallpaperManager
@@ -132,21 +131,6 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         NotificationCenter.default.addObserver(self, selector: #selector(statusChanged), name: WallpaperManager.playbackStateDidChangeNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(screenListChanged), name: WallpaperManager.screenListDidChangeNotification, object: nil)
 
-        appearanceObservation = contentView.observe(\.effectiveAppearance, options: [.new]) { [weak self] _, _ in
-            self?.updateLayerColors()
-        }
-
-        updateUI()
-    }
-
-    private func updateLayerColors() {
-        guard let contentView = window?.contentView else { return }
-        contentView.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
-        previewContainer?.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
-        previewContainer?.layer?.borderColor = NSColor.separatorColor.cgColor
-        previewContainer?.layer?.shadowColor = NSColor.black.cgColor
-        dropZone?.layer?.backgroundColor = NSColor.controlBackgroundColor.withAlphaComponent(0.95).cgColor
-        previewLoadingOverlay?.layer?.backgroundColor = NSColor(calibratedWhite: 0.09, alpha: 0.76).cgColor
         updateUI()
     }
 
@@ -202,8 +186,9 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         statusContainer.addSubview(statusLabel)
         header.addSubview(statusContainer)
 
-        let separator = NSBox(frame: NSRect(x: 0, y: 0, width: 500, height: 1))
-        separator.boxType = .separator
+        let separator = NSView(frame: NSRect(x: 0, y: 0, width: 500, height: 1))
+        separator.wantsLayer = true
+        separator.layer?.backgroundColor = NSColor.separatorColor.cgColor
         header.addSubview(separator)
 
         return header
@@ -592,8 +577,9 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private func createFooter() -> NSView {
         let footer = NSView(frame: NSRect(x: 0, y: 0, width: 500, height: 50))
 
-        let separator = NSBox(frame: NSRect(x: 20, y: 35, width: 460, height: 1))
-        separator.boxType = .separator
+        let separator = NSView(frame: NSRect(x: 20, y: 35, width: 460, height: 1))
+        separator.wantsLayer = true
+        separator.layer?.backgroundColor = NSColor.separatorColor.cgColor
         footer.addSubview(separator)
 
         let author = NSTextField(labelWithString: "ui.madeBy".localized("❤️"))
