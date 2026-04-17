@@ -464,6 +464,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         stopButton.controlSize = .regular
         stopButton.font = NSFont(name: "Avenir Next Demi Bold", size: 13) ?? NSFont.systemFont(ofSize: 13, weight: .semibold)
         stopButton.frame = NSRect(x: 230, y: 5, width: 180, height: 40)
+        stopButton.toolTip = "ui.stopWallpaperTooltip".localized
         controls.addSubview(stopButton)
 
         return controls
@@ -496,6 +497,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         syncDesktopSwitch.font = NSFont.systemFont(ofSize: 12)
         syncDesktopSwitch.frame = NSRect(x: 0, y: 130, width: 380, height: 20)
         syncDesktopSwitch.state = SettingsManager.shared.syncDesktopWallpaper ? .on : .off
+        syncDesktopSwitch.toolTip = "ui.syncDesktopWallpaper.tooltip".localized
         settings.addSubview(syncDesktopSwitch)
 
         rotationSwitch = NSButton(checkboxWithTitle: "ui.enableRotation".localized,
@@ -568,6 +570,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         inheritSourcePopUp = NSPopUpButton(frame: NSRect(x: 125, y: 2, width: 300, height: 25))
         inheritSourcePopUp.target = self
         inheritSourcePopUp.action = #selector(inheritSourceChanged)
+        inheritSourcePopUp.toolTip = "ui.newScreenInherit.tooltip".localized
         settings.addSubview(inheritSourcePopUp)
         updateInheritSourceMenu()
 
@@ -733,6 +736,14 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         }
         updateUI()
         (NSApp.delegate as? AppDelegate)?.rebuildRecentMenu()
+    }
+
+    @objc private func clearThenRepick() {
+        stopWallpaper()
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = true
+        openPicker(panel: panel)
     }
 
     @objc func launchSwitchChanged(_ sender: NSButton) {
@@ -936,7 +947,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         wallpaperManager.setUIScreen(selectedScreen)
 
         let activeScreen = selectedScreen ?? NSScreen.main ?? NSScreen.screens.first
-        stopButton.title = "\("ui.stopWallpaper".localized) (\("ui.screen".localized))"
+        stopButton.title = "ui.stopWallpaper".localized
         stopButton.isEnabled = activeScreen.flatMap { wallpaperManager.wallpaperPath(for: $0) ?? SettingsManager.shared.wallpaperPath(for: $0) } != nil
             || activeScreen.flatMap { SettingsManager.shared.folderConfig(for: $0) } != nil
         applyAllButton.isEnabled = (activeScreen != nil && NSScreen.screens.count > 1)

@@ -18,6 +18,7 @@
 "ui.selectFile" = "Pick File";
 "ui.selectFolder" = "Pick Folder";
 "ui.stopWallpaper" = "Clear";
+"ui.stopWallpaperTooltip" = "Stops the wallpaper on the selected screen and restores the original macOS wallpaper";
 "ui.noWallpaper" = "No wallpaper selected";
 "ui.status" = "Status: %@";
 "ui.playing" = "Live";
@@ -27,7 +28,8 @@
 "ui.notSet" = "None";
 "ui.launchAtLogin" = "Launch at Login";
 "ui.pauseWhenInvisible" = "Battery Saver";
-"ui.syncDesktopWallpaper" = "Set Static Wallpaper (Lock Screen & Desktop)";
+"ui.syncDesktopWallpaper" = "Sync Static Wallpaper to Lock Screen & Desktop";
+"ui.syncDesktopWallpaper.tooltip" = "When enabled, SakuraWallpaper pushes a static copy of the current wallpaper to macOS. Images apply immediately; videos snapshot the current frame. This keeps the lock screen and desktop consistent when the app is not visible.";
 "ui.rotationInterval" = "Interval";
 "ui.enableRotation" = "Enable Rotation";
 "ui.folderMode" = "Rotation Mode";
@@ -99,7 +101,8 @@
 "language.en" = "English";
 "language.zh-Hans" = "简体中文";
 "menu.language" = "Language";
-"language.restartHint" = "Please restart the app to apply language change.";
+"language.restartHint" = "Please restart the app to apply the language change.";
+"language.restartNow" = "Restart Now";
 
 // Screen
 "screen.display" = "Display %d";
@@ -114,4 +117,5 @@
 "about.features" = "Video & Image Wallpaper\nMulti-Display Support\nRecent Wallpapers\nLaunch at Login";
 
 "ui.newScreenInherit" = "New Screen Inherits";
+"ui.newScreenInherit.tooltip" = "When you connect a new display, it will copy the wallpaper configuration from this source screen.";
 "ui.inheritPrimaryScreen" = "Primary Screen (Default)";
