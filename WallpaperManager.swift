@@ -507,6 +507,18 @@ class WallpaperManager {
         } else {
             showAll()
         }
+
+        // Resize any existing player windows whose screen geometry changed during the
+        // topology event (e.g. USB-C monitor shifts position/size when HDMI is unplugged
+        // in clamshell mode). This runs after new players are created so all players
+        // in the final state are covered.
+        for screen in NSScreen.screens {
+            let id = SettingsManager.screenIdentifier(screen)
+            guard let player = players[id] else { continue }
+            if player.window?.frame != screen.frame {
+                player.resize(to: screen)
+            }
+        }
     }
 
     private func inheritanceSourceScreen(excluding screenId: String) -> NSScreen? {
