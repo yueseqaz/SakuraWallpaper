@@ -128,6 +128,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
         NotificationCenter.default.addObserver(self, selector: #selector(rotationHappened), name: WallpaperManager.didRotateNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(statusChanged), name: WallpaperManager.playbackStateDidChangeNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(screenListChanged), name: WallpaperManager.screenListDidChangeNotification, object: nil)
 
         wallpaperManager.setUIScreen(selectedScreen)
         updateUI()
@@ -142,6 +143,14 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     @objc private func rotationHappened() {
         DispatchQueue.main.async {
             self.collectionView.reloadData()
+            self.updateUI()
+        }
+    }
+
+    /// Called when a screen is detached and uiScreenID has been updated (Bug 6 fix).
+    /// Refreshes the screen picker so it reflects the current display topology.
+    @objc private func screenListChanged() {
+        DispatchQueue.main.async {
             self.updateUI()
         }
     }

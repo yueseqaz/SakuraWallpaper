@@ -31,6 +31,7 @@ class WallpaperManager {
 
     static let didRotateNotification = Notification.Name("WallpaperManagerDidRotate")
     static let playbackStateDidChangeNotification = Notification.Name("WallpaperManagerPlaybackStateDidChange")
+    static let screenListDidChangeNotification = Notification.Name("WallpaperManagerScreenListDidChange")
 
     var playlist: [URL] {
         let id = uiOrFirstPlaylistScreenID()
@@ -443,6 +444,14 @@ class WallpaperManager {
             stopRotationTimer(forScreenID: removedId)
             pausedScreens.remove(removedId)
             clearTransientDesktopSnapshot(for: removedId)
+        }
+
+        // If the UI-selected screen was detached, update uiScreenID to a valid screen
+        // and notify MainWindowController to refresh the screen picker (Bug 6 fix).
+        let removedIds = existingIds.subtracting(currentScreenIds)
+        if let staleID = uiScreenID, removedIds.contains(staleID) {
+            uiScreenID = currentScreenIds.sorted().first
+            NotificationCenter.default.post(name: WallpaperManager.screenListDidChangeNotification, object: nil)
         }
 
         for screen in NSScreen.screens {
