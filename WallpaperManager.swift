@@ -580,17 +580,20 @@ class WallpaperManager {
     }
 
     func setWallpaper(url: URL) {
+        // Snapshot the screen list before stopAll() so createAllPlayers operates on
+        // the same screens regardless of topology changes in the asyncAfter window (Bug 5 fix).
+        let screens = NSScreen.screens
         stopAll()
         SettingsManager.shared.clearAllFolderConfigs()
         SettingsManager.shared.isFolderMode = false
         SettingsManager.shared.wallpaperPath = url.path
-        for screen in NSScreen.screens {
+        for screen in screens {
             let id = SettingsManager.screenIdentifier(screen)
             SettingsManager.shared.setWallpaper(path: url.path, for: screen)
             currentFiles[id] = url
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-            self?.createAllPlayers()
+            self?.createAllPlayers(for: screens)
             self?.startKeepVisibleTimer()
         }
     }
@@ -760,7 +763,15 @@ class WallpaperManager {
     }
 
     private func createAllPlayers() {
-        for screen in NSScreen.screens {
+        createAllPlayers(for: NSScreen.screens)
+    }
+
+    /// Overload that accepts a pre-captured screen snapshot (Bug 5 fix).
+    /// Used by setWallpaper(url:) to ensure createAllPlayers operates on the same
+    /// screen list that was current when stopAll() was called, eliminating sensitivity
+    /// to topology changes in the asyncAfter window.
+    private func createAllPlayers(for screens: [NSScreen]) {
+        for screen in screens {
             let id = SettingsManager.screenIdentifier(screen)
             guard let url = urlForScreen(screen) else { continue }
             createOrUpdatePlayer(for: screen, url: url)
