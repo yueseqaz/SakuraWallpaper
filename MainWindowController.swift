@@ -225,23 +225,28 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private func updateScreenMenu() {
         screenPopUp.removeAllItems()
 
-        // Individual Screens
-        for (index, screen) in NSScreen.screens.enumerated() {
+        // Sort screens: built-in display first, then external displays by name
+        let sortedScreens = NSScreen.screens.sorted { a, b in
+            if a.isBuiltIn != b.isBuiltIn { return a.isBuiltIn }
+            return a.localizedName < b.localizedName
+        }
+
+        for (index, screen) in sortedScreens.enumerated() {
             let displayName: String
             if #available(macOS 10.15, *) {
                 displayName = screen.localizedName
             } else {
                 displayName = "screen.display".localized(index + 1)
             }
-            let isBuiltIn = screen.isBuiltIn
-            let suffix = isBuiltIn ? "screen.builtIn".localized : ""
+            let suffix = screen.isBuiltIn ? "screen.builtIn".localized : ""
             screenPopUp.addItem(withTitle: "\(displayName)\(suffix)")
             screenPopUp.lastItem?.representedObject = screen
         }
 
-        if let selected = selectedScreen, let index = NSScreen.screens.firstIndex(of: selected) {
+        if let selected = selectedScreen,
+           let index = sortedScreens.firstIndex(of: selected) {
             screenPopUp.selectItem(at: index)
-        } else if let first = NSScreen.screens.first {
+        } else if let first = sortedScreens.first {
             selectedScreen = first
             screenPopUp.selectItem(at: 0)
         } else {
@@ -258,9 +263,18 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     @objc private func applyToAllScreens() {
         if let sourceScreen = selectedScreen,
            let config = SettingsManager.shared.folderConfig(for: sourceScreen) {
-            let folderURL = URL(fileURLWithPath: config.folderPath)
-            for targetScreen in NSScreen.screens {
-                wallpaperManager.setFolder(url: folderURL, for: targetScreen, config: config)
+            // If the user has manually navigated to a specific file within the folder,
+            // use that file as the sync source rather than resetting to the folder default.
+            let sourceScreenID = SettingsManager.screenIdentifier(sourceScreen)
+            if let manualFile = wallpaperManager.currentFiles[sourceScreenID] {
+                for targetScreen in NSScreen.screens {
+                    wallpaperManager.setWallpaper(url: manualFile, for: targetScreen)
+                }
+            } else {
+                let folderURL = URL(fileURLWithPath: config.folderPath)
+                for targetScreen in NSScreen.screens {
+                    wallpaperManager.setFolder(url: folderURL, for: targetScreen, config: config)
+                }
             }
         } else if let url = wallpaperManager.currentFile {
             wallpaperManager.setWallpaper(url: url)
@@ -405,6 +419,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
         fileNameLabel = NSTextField(labelWithString: "ui.noWallpaper".localized)
         fileNameLabel.font = NSFont.systemFont(ofSize: 12, weight: .medium)
+        fileNameLabel.textColor = .labelColor
         fileNameLabel.lineBreakMode = .byTruncatingMiddle
         fileNameLabel.frame = NSRect(x: 10, y: 6, width: 330, height: 16)
         bar.addSubview(fileNameLabel)
@@ -490,6 +505,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
         intervalPrefix = NSTextField(labelWithString: "ui.rotationInterval".localized + ":")
         intervalPrefix.font = NSFont.systemFont(ofSize: 12)
+        intervalPrefix.textColor = .labelColor
         intervalPrefix.frame = NSRect(x: 0, y: 52, width: 120, height: 20)
         settings.addSubview(intervalPrefix)
 
@@ -529,6 +545,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         
         inheritSourceLabel = NSTextField(labelWithString: "ui.newScreenInherit".localized + ":")
         inheritSourceLabel.font = NSFont.systemFont(ofSize: 12)
+        inheritSourceLabel.textColor = .labelColor
         inheritSourceLabel.frame = NSRect(x: 0, y: 4, width: 120, height: 20)
         settings.addSubview(inheritSourceLabel)
         
