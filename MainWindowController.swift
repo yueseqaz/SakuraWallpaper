@@ -8,6 +8,19 @@ private final class DragDropContainerView: NSView {
     var onDragStateChanged: ((Bool) -> Void)?
     var canAcceptDrop: ((URL) -> Bool)?
 
+    var isHighlightedForDrop: Bool = false {
+        didSet { needsDisplay = true }
+    }
+
+    override var wantsUpdateLayer: Bool { true }
+
+    override func updateLayer() {
+        super.updateLayer()
+        layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
+        layer?.borderColor = isHighlightedForDrop ? NSColor.systemBlue.cgColor : NSColor.separatorColor.cgColor
+        layer?.shadowColor = NSColor.black.cgColor
+    }
+
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         registerForDraggedTypes([.fileURL])
@@ -116,8 +129,6 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
     private func setupUI() {
         guard let contentView = window?.contentView else { return }
-        contentView.wantsLayer = true
-        contentView.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
 
         contentView.addSubview(createHeader())
         contentView.addSubview(createScreenSelector())
@@ -157,8 +168,6 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
     private func createHeader() -> NSView {
         let header = NSView(frame: NSRect(x: 0, y: 684, width: 500, height: 60))
-        header.wantsLayer = true
-        header.layer?.backgroundColor = NSColor.clear.cgColor
 
         let appIcon = NSTextField(labelWithString: "🌸")
         appIcon.font = NSFont.systemFont(ofSize: 30)
@@ -173,10 +182,12 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         header.addSubview(title)
 
         let statusContainer = NSView(frame: NSRect(x: 350, y: 10, width: 130, height: 40))
-        statusIndicator = NSView(frame: NSRect(x: 0, y: 14, width: 8, height: 8))
-        statusIndicator.wantsLayer = true
-        statusIndicator.layer?.cornerRadius = 4
-        statusIndicator.layer?.backgroundColor = NSColor.systemGray.cgColor
+        let indicatorBox = NSBox(frame: NSRect(x: 0, y: 14, width: 8, height: 8))
+        indicatorBox.boxType = .custom
+        indicatorBox.borderWidth = 0
+        indicatorBox.cornerRadius = 4
+        indicatorBox.fillColor = .systemGray
+        statusIndicator = indicatorBox
         statusContainer.addSubview(statusIndicator)
 
         statusLabel = NSTextField(labelWithString: "ui.status".localized("ui.notSet".localized))
@@ -186,9 +197,8 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         statusContainer.addSubview(statusLabel)
         header.addSubview(statusContainer)
 
-        let separator = NSView(frame: NSRect(x: 0, y: 0, width: 500, height: 1))
-        separator.wantsLayer = true
-        separator.layer?.backgroundColor = NSColor.separatorColor.cgColor
+        let separator = NSBox(frame: NSRect(x: 0, y: 0, width: 500, height: 1))
+        separator.boxType = .separator
         header.addSubview(separator)
 
         return header
@@ -196,9 +206,6 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
     private func createScreenSelector() -> NSView {
         let container = NSView(frame: NSRect(x: 20, y: 636, width: 460, height: 40))
-        container.wantsLayer = true
-        container.layer?.cornerRadius = 8
-        container.layer?.backgroundColor = NSColor.clear.cgColor
 
         let label = NSTextField(labelWithString: "\("ui.screen".localized):")
         label.font = NSFont.systemFont(ofSize: 12, weight: .medium)
@@ -269,11 +276,8 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         previewContainer = DragDropContainerView(frame: NSRect(x: 20, y: 348, width: 460, height: 280))
         previewContainer.wantsLayer = true
         previewContainer.layer?.cornerRadius = 16
-        previewContainer.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
-        previewContainer.layer?.borderColor = NSColor.separatorColor.cgColor
         previewContainer.layer?.borderWidth = 1
         previewContainer.layer?.masksToBounds = true
-        previewContainer.layer?.shadowColor = NSColor.black.cgColor
         previewContainer.layer?.shadowOpacity = 0.10
         previewContainer.layer?.shadowRadius = 8
         previewContainer.layer?.shadowOffset = NSSize(width: 0, height: -2)
@@ -288,9 +292,12 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         }
         previewContainer.toolTip = "ui.pickHint".localized
 
-        dropZone = NSView(frame: previewContainer.bounds)
-        dropZone.wantsLayer = true
-        dropZone.layer?.backgroundColor = NSColor.controlBackgroundColor.withAlphaComponent(0.95).cgColor
+        let dropBox = NSBox(frame: previewContainer.bounds)
+        dropBox.boxType = .custom
+        dropBox.borderWidth = 0
+        dropBox.cornerRadius = 16
+        dropBox.fillColor = NSColor.controlBackgroundColor.withAlphaComponent(0.95)
+        dropZone = dropBox
 
         dropIconView = NSImageView(frame: NSRect(x: 0, y: 152, width: 460, height: 44))
         dropIconView.imageAlignment = .alignCenter
@@ -365,11 +372,14 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         scrollView.drawsBackground = false
         previewContainer.addSubview(scrollView)
 
-        previewLoadingOverlay = NSView(frame: previewContainer.bounds)
-        previewLoadingOverlay.autoresizingMask = [.width, .height]
-        previewLoadingOverlay.wantsLayer = true
-        previewLoadingOverlay.layer?.backgroundColor = NSColor(calibratedWhite: 0.09, alpha: 0.76).cgColor
-        previewLoadingOverlay.isHidden = true
+        let overlayBox = NSBox(frame: previewContainer.bounds)
+        overlayBox.boxType = .custom
+        overlayBox.borderWidth = 0
+        overlayBox.cornerRadius = 16
+        overlayBox.fillColor = NSColor(calibratedWhite: 0.09, alpha: 0.76)
+        overlayBox.autoresizingMask = [.width, .height]
+        overlayBox.isHidden = true
+        previewLoadingOverlay = overlayBox
 
         previewLoadingSpinner = NSProgressIndicator(frame: NSRect(x: 0, y: 0, width: 20, height: 20))
         previewLoadingSpinner.style = .spinning
@@ -393,11 +403,6 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
     private func createInfoBar() -> NSView {
         let bar = NSView(frame: NSRect(x: 20, y: 310, width: 460, height: 30))
-        bar.wantsLayer = true
-        bar.layer?.cornerRadius = 8
-        bar.layer?.backgroundColor = NSColor.clear.cgColor
-        bar.layer?.borderColor = NSColor.clear.cgColor
-        bar.layer?.borderWidth = 1
 
         fileNameLabel = NSTextField(labelWithString: "ui.noWallpaper".localized)
         fileNameLabel.font = NSFont.systemFont(ofSize: 12, weight: .medium)
@@ -418,9 +423,6 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
     private func createControls() -> NSView {
         let controls = NSView(frame: NSRect(x: 20, y: 252, width: 460, height: 50))
-        controls.wantsLayer = true
-        controls.layer?.cornerRadius = 8
-        controls.layer?.backgroundColor = NSColor.clear.cgColor
 
         selectFileButton = NSButton(title: "ui.selectFile".localized, target: self, action: #selector(selectFile))
         selectFileButton.bezelStyle = .rounded
@@ -445,11 +447,6 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
     private func createSettings() -> NSView {
         let settings = NSView(frame: NSRect(x: 20, y: 58, width: 460, height: 186))
-        settings.wantsLayer = true
-        settings.layer?.cornerRadius = 8
-        settings.layer?.backgroundColor = NSColor.clear.cgColor
-        settings.layer?.borderColor = NSColor.clear.cgColor
-        settings.layer?.borderWidth = 1
 
         launchSwitch = NSButton(checkboxWithTitle: "ui.launchAtLogin".localized,
                                 target: self, action: #selector(launchSwitchChanged))
@@ -577,9 +574,8 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private func createFooter() -> NSView {
         let footer = NSView(frame: NSRect(x: 0, y: 0, width: 500, height: 50))
 
-        let separator = NSView(frame: NSRect(x: 20, y: 35, width: 460, height: 1))
-        separator.wantsLayer = true
-        separator.layer?.backgroundColor = NSColor.separatorColor.cgColor
+        let separator = NSBox(frame: NSRect(x: 20, y: 35, width: 460, height: 1))
+        separator.boxType = .separator
         footer.addSubview(separator)
 
         let author = NSTextField(labelWithString: "ui.madeBy".localized("❤️"))
@@ -832,9 +828,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
     private func setDropHighlight(active: Bool) {
         guard dropZone.isHidden == false else { return }
-        previewContainer.layer?.borderColor = active
-            ? NSColor.systemBlue.cgColor
-            : NSColor.separatorColor.cgColor
+        previewContainer.isHighlightedForDrop = active
         dropLabel.textColor = active
             ? NSColor.systemBlue
             : .labelColor
@@ -940,21 +934,23 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
             }
 
             let isAutoPaused = SettingsManager.shared.pauseWhenInvisible && wallpaperManager.isPausedInternally && !isCurrentlyPaused
-            if isCurrentlyPaused {
-                statusIndicator.layer?.backgroundColor = NSColor.systemYellow.cgColor
-                statusLabel.stringValue = "ui.status".localized("ui.pausedManual".localized)
-                statusLabel.textColor = .systemYellow
-                previewPlayer?.pause()
-            } else if isAutoPaused {
-                statusIndicator.layer?.backgroundColor = NSColor.systemOrange.cgColor
-                statusLabel.stringValue = "ui.status".localized("ui.pausedAuto".localized)
-                statusLabel.textColor = .systemOrange
-                previewPlayer?.pause()
-            } else {
-                statusIndicator.layer?.backgroundColor = NSColor.systemGreen.cgColor
-                statusLabel.stringValue = "ui.status".localized("ui.playing".localized)
-                statusLabel.textColor = .systemGreen
-                previewPlayer?.play()
+            if let indicator = statusIndicator as? NSBox {
+                if isCurrentlyPaused {
+                    indicator.fillColor = .systemYellow
+                    statusLabel.stringValue = "ui.status".localized("ui.pausedManual".localized)
+                    statusLabel.textColor = .systemYellow
+                    previewPlayer?.pause()
+                } else if isAutoPaused {
+                    indicator.fillColor = .systemOrange
+                    statusLabel.stringValue = "ui.status".localized("ui.pausedAuto".localized)
+                    statusLabel.textColor = .systemOrange
+                    previewPlayer?.pause()
+                } else {
+                    indicator.fillColor = .systemGreen
+                    statusLabel.stringValue = "ui.status".localized("ui.playing".localized)
+                    statusLabel.textColor = .systemGreen
+                    previewPlayer?.play()
+                }
             }
 
             showPreview(url: url, type: type)
@@ -964,7 +960,9 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
             fileNameLabel.stringValue = "ui.noWallpaper".localized
             fileTypeLabel.stringValue = ""
 
-            statusIndicator.layer?.backgroundColor = NSColor.tertiaryLabelColor.cgColor
+            if let indicator = statusIndicator as? NSBox {
+                indicator.fillColor = .tertiaryLabelColor
+            }
             statusLabel.stringValue = "ui.status".localized("ui.notSet".localized)
             statusLabel.textColor = .secondaryLabelColor
 
