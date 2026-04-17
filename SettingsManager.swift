@@ -146,8 +146,14 @@ class SettingsManager {
         if let number = deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber {
             return "screen_\(number.uint32Value)"
         }
-        // Unfixed fallback — returns a new UUID on every call (Bug 3).
-        return UUID().uuidString
+        // Deterministic fallback derived from stable screen properties (Bug 3 fix).
+        // Uses localizedName + frame dimensions so the same physical screen always
+        // maps to the same identifier, even when NSScreenNumber is temporarily unavailable.
+        let sizeValue = deviceDescription[NSDeviceDescriptionKey("NSDeviceSize")] as? NSValue
+        let size = sizeValue?.sizeValue ?? .zero
+        let w = Int(size.width)
+        let h = Int(size.height)
+        return "screen_fallback_\(name)_\(w)x\(h)"
     }
 
     func wallpaperPath(for screen: NSScreen) -> String? {
