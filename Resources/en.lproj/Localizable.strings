@@ -111,6 +111,9 @@
 "about.featuresTitle" = "Features";
 "about.features" = "Video & Image Wallpaper\nMulti-Display Support\nRecent Wallpapers\nLaunch at Login";
 
-"ui.newScreenInherit" = "New Screen Inherits";
-"ui.newScreenInherit.tooltip" = "When you connect a new display, it will copy the wallpaper configuration from this source screen.";
-"ui.inheritPrimaryScreen" = "Primary Screen (Default)";
+"ui.syncScreens" = "Link Screens";
+"ui.syncScreens.tooltip" = "When checked, this screen shares its wallpaper, folder, and rotation settings with all other linked screens.";
+"ui.newScreenPolicy" = "New Screen Policy";
+"ui.newScreenPolicy.inheritSyncGroup" = "Inherit Sync Group";
+"ui.newScreenPolicy.blank" = "Start Blank";
+"ui.newScreenPolicy.tooltip" = "Controls what happens when a new monitor is connected.";

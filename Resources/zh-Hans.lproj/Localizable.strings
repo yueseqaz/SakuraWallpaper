@@ -110,6 +110,9 @@
 "about.featuresTitle" = "功能特性";
 "about.features" = "视频和图片壁纸\n多显示器支持\n最近使用壁纸\n开机自启动";
 
-"ui.newScreenInherit" = "新屏继承来源";
-"ui.newScreenInherit.tooltip" = "接入新显示器时，将从此来源屏幕复制壁纸配置。";
-"ui.inheritPrimaryScreen" = "主屏（默认）";
+"ui.syncScreens" = "联动屏幕";
+"ui.syncScreens.tooltip" = "勾选后，此屏幕将与所有已联动屏幕共享壁纸、文件夹和轮播设置。";
+"ui.newScreenPolicy" = "新屏策略";
+"ui.newScreenPolicy.inheritSyncGroup" = "继承同步组";
+"ui.newScreenPolicy.blank" = "空白启动";
+"ui.newScreenPolicy.tooltip" = "控制接入新显示器时的行为。";

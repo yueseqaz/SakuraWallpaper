@@ -13,6 +13,7 @@ mkdir -p "$APP_DIR/Contents/Resources"
 # 编译
 echo "Compiling..."
 swiftc -o "$APP_DIR/Contents/MacOS/$APP_NAME" \
+    Screen_Config.swift \
     SettingsManager.swift \
     MediaType.swift \
     PlaylistBuilder.swift \

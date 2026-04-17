@@ -1,0 +1,18 @@
+{
+  "enabled": true,
+  "name": "Rebuild & Reopen on Save",
+  "description": "Kills the running SakuraWallpaper app, rebuilds it, and reopens it whenever a Swift or localization file is saved",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "*.swift",
+      "*.strings"
+    ]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "pkill -x SakuraWallpaper; sleep 1; cd /Users/arsabolsky/Documents/SakuraWallpaper && ./build.sh && open build/SakuraWallpaper.app",
+    "timeout": 60
+  }
+}
