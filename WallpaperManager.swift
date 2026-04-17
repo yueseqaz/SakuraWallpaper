@@ -766,6 +766,11 @@ class WallpaperManager {
     private func createOrUpdatePlayer(for screen: NSScreen, url: URL) {
         let id = SettingsManager.screenIdentifier(screen)
         if let player = players[id] {
+            // Resize the window and layers if the screen geometry has changed
+            // (e.g. monitor reattached at a different resolution — Bug 1 fix).
+            if player.window?.frame != screen.frame {
+                player.resize(to: screen)
+            }
             player.updateMedia(url: url)
         } else {
             let player = ScreenPlayer(fileURL: url, screen: screen)
