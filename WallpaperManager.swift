@@ -525,14 +525,38 @@ class WallpaperManager {
     }
 
     private func primaryScreenForInheritance(excluding screenId: String) -> NSScreen? {
-        if let builtIn = NSScreen.screens.first(where: { $0.isBuiltIn && SettingsManager.screenIdentifier($0) != screenId }) {
+        // Bug 7 fix: prefer an already-configured external monitor over the built-in display.
+        // When the MacBook lid is opened after clamshell mode, the built-in display reappears
+        // and would otherwise be selected unconditionally, overwriting external monitor configs.
+        let candidates = NSScreen.screens.filter { SettingsManager.screenIdentifier($0) != screenId }
+
+        // First: any non-built-in screen that already has a saved configuration.
+        if let configuredExternal = candidates.first(where: {
+            !$0.isBuiltIn && hasExistingConfig(for: $0)
+        }) {
+            return configuredExternal
+        }
+
+        // Second: built-in display (original preference).
+        if let builtIn = candidates.first(where: { $0.isBuiltIn }) {
             return builtIn
         }
+
+        // Third: NSScreen.main.
         if let main = NSScreen.main,
            SettingsManager.screenIdentifier(main) != screenId {
             return main
         }
-        return NSScreen.screens.first(where: { SettingsManager.screenIdentifier($0) != screenId })
+
+        // Fallback: any remaining screen.
+        return candidates.first
+    }
+
+    /// Returns true if the given screen has any saved wallpaper or folder configuration.
+    private func hasExistingConfig(for screen: NSScreen) -> Bool {
+        if SettingsManager.shared.folderConfig(for: screen) != nil { return true }
+        if SettingsManager.shared.wallpaperPath(for: screen) != nil { return true }
+        return false
     }
 
     @objc private func appBecameActive() {
