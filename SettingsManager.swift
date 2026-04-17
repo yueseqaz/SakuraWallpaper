@@ -137,9 +137,16 @@ class SettingsManager {
     }
 
     static func screenIdentifier(_ screen: NSScreen) -> String {
-        if let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber {
+        return screenIdentifier(deviceDescription: screen.deviceDescription, name: screen.localizedName)
+    }
+
+    /// Testable core of screenIdentifier. Accepts raw device description and name
+    /// so tests can exercise the logic without instantiating NSScreen.
+    static func screenIdentifier(deviceDescription: [NSDeviceDescriptionKey: Any], name: String) -> String {
+        if let number = deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber {
             return "screen_\(number.uint32Value)"
         }
+        // Unfixed fallback — returns a new UUID on every call (Bug 3).
         return UUID().uuidString
     }
 
