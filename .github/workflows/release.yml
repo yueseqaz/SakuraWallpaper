@@ -42,7 +42,10 @@ jobs:
             ### Install
             Download `SakuraWallpaper.dmg` below, open it, and drag the app to Applications.
 
-            > **Note**: The app is unsigned. On first launch, right-click → Open to bypass Gatekeeper.
+            > **Note**: The app is unsigned. If macOS blocks it, run this in Terminal after installing:
+            > ```
+            > xattr -cr /Applications/SakuraWallpaper.app
+            > ```
 
             ### Homebrew
             ```
