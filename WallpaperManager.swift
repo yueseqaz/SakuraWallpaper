@@ -28,6 +28,9 @@ class WallpaperManager {
     private let lockScreenCaptureQueue = DispatchQueue(label: "com.sakura.wallpaper.lockscreen", qos: .userInitiated)
     private var transientDesktopSnapshotsByScreen: [String: URL] = [:]
     private var screensChangedWorkItem: DispatchWorkItem?
+    /// Original system desktop URLs captured before SakuraWallpaper first overwrites them.
+    /// Used to restore the wallpaper when the user clears SakuraWallpaper.
+    private var originalDesktopURLsByScreen: [String: URL] = [:]
 
     static let didRotateNotification = Notification.Name("WallpaperManagerDidRotate")
     static let playbackStateDidChangeNotification = Notification.Name("WallpaperManagerPlaybackStateDidChange")
@@ -353,6 +356,11 @@ class WallpaperManager {
 
     private func applyDesktopImage(at imageURL: URL, for screen: NSScreen, screenID: String) {
         do {
+            // Capture the original system desktop URL the first time we overwrite it,
+            // so we can restore it when the user clears SakuraWallpaper.
+            if originalDesktopURLsByScreen[screenID] == nil {
+                originalDesktopURLsByScreen[screenID] = NSWorkspace.shared.desktopImageURL(for: screen)
+            }
             let options = NSWorkspace.shared.desktopImageOptions(for: screen) ?? [:]
             try NSWorkspace.shared.setDesktopImageURL(imageURL, for: screen, options: options)
         } catch {
@@ -692,6 +700,12 @@ class WallpaperManager {
         playlistsByScreen.removeAll()
         playlistIndexesByScreen.removeAll()
         clearAllTransientDesktopSnapshots()
+        // Restore original system desktop wallpapers for all screens
+        for screen in NSScreen.screens {
+            let id = SettingsManager.screenIdentifier(screen)
+            restoreOriginalDesktop(for: screen, screenID: id)
+        }
+        originalDesktopURLsByScreen.removeAll()
     }
 
     func stopWallpaper(for screen: NSScreen) {
@@ -706,7 +720,21 @@ class WallpaperManager {
         clearTransientDesktopSnapshot(for: id)
         SettingsManager.shared.setWallpaper(path: nil, for: screen)
         SettingsManager.shared.clearFolderConfig(for: screen)
+        // Restore original system desktop wallpaper for this screen
+        restoreOriginalDesktop(for: screen, screenID: id)
+        originalDesktopURLsByScreen.removeValue(forKey: id)
         if players.isEmpty { stopKeepVisibleTimer() }
+    }
+
+    private func restoreOriginalDesktop(for screen: NSScreen, screenID: String) {
+        guard let originalURL = originalDesktopURLsByScreen[screenID],
+              FileManager.default.fileExists(atPath: originalURL.path) else { return }
+        do {
+            let options = NSWorkspace.shared.desktopImageOptions(for: screen) ?? [:]
+            try NSWorkspace.shared.setDesktopImageURL(originalURL, for: screen, options: options)
+        } catch {
+            print("Failed to restore original desktop for \(screenID): \(error)")
+        }
     }
 
     private func uiOrFirstPlaylistScreenID() -> String? {
