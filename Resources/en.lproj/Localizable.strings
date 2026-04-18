@@ -18,6 +18,7 @@
 "ui.selectFile" = "Pick File";
 "ui.selectFolder" = "Pick Folder";
 "ui.stopWallpaper" = "Clear";
+"ui.stopWallpaperTooltip" = "Stops the wallpaper on the selected screen and restores the original macOS wallpaper";
 "ui.noWallpaper" = "No wallpaper selected";
 "ui.status" = "Status: %@";
 "ui.playing" = "Live";
@@ -27,6 +28,8 @@
 "ui.notSet" = "None";
 "ui.launchAtLogin" = "Launch at Login";
 "ui.pauseWhenInvisible" = "Battery Saver";
+"ui.syncDesktopWallpaper" = "Sync Static Wallpaper to Lock Screen & Desktop";
+"ui.syncDesktopWallpaper.tooltip" = "When enabled, SakuraWallpaper pushes a static copy of the current wallpaper to macOS. Images apply immediately; videos snapshot the current frame. This keeps the lock screen and desktop consistent when the app is not visible.";
 "ui.rotationInterval" = "Interval";
 "ui.enableRotation" = "Enable Rotation";
 "ui.folderMode" = "Rotation Mode";
@@ -44,10 +47,6 @@
 "ui.formats" = "Supports MP4, MOV, GIF, PNG, JPG, WebP";
 "ui.tapToPick" = "Click this area to pick a file or folder in Finder";
 "ui.pickHint" = "Drag or click the area above to choose wallpaper in Finder";
-"ui.repickGuide" = "Want to change wallpaper? Click \"Clear then Repick\" on the right, then choose above";
-"ui.clearThenRepick" = "Clear then Repick";
-"ui.clearThenPickScreen" = "Clear then repick (Screen)";
-"ui.clearThenPickAll" = "Clear then repick (All)";
 "ui.loadingPreview" = "Loading preview...";
 "ui.folderItems" = "Items: %d (%@)";
 "ui.recursiveEnabled" = "recursive";
@@ -98,7 +97,7 @@
 "language.en" = "English";
 "language.zh-Hans" = "简体中文";
 "menu.language" = "Language";
-"language.restartHint" = "Please restart the app to apply language change.";
+"language.restartHint" = "Please restart the app to apply the language change.";
 
 // Screen
 "screen.display" = "Display %d";
@@ -112,5 +111,9 @@
 "about.featuresTitle" = "Features";
 "about.features" = "Video & Image Wallpaper\nMulti-Display Support\nRecent Wallpapers\nLaunch at Login";
 
-"ui.newScreenInherit" = "New Screen Inherits";
-"ui.inheritPrimaryScreen" = "Primary Screen (Default)";
+"ui.syncScreens" = "Link Screens";
+"ui.syncScreens.tooltip" = "When checked, this screen shares its wallpaper, folder, and rotation settings with all other linked screens.";
+"ui.newScreenPolicy" = "New Screen Policy";
+"ui.newScreenPolicy.inheritSyncGroup" = "Inherit Sync Group";
+"ui.newScreenPolicy.blank" = "Start Blank";
+"ui.newScreenPolicy.tooltip" = "Controls what happens when a new monitor is connected.";

@@ -28,3 +28,6 @@ DerivedData/
 
 # User settings
 *.xcuserstate
+
+# Agent data
+.kiro/

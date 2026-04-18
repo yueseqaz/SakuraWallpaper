@@ -34,6 +34,7 @@ class AboutWindowController: NSWindowController {
         
         let appName = NSTextField(labelWithString: "app.name".localized)
         appName.font = NSFont.systemFont(ofSize: 22, weight: .bold)
+        appName.textColor = .labelColor
         appName.alignment = .center
         appName.frame = NSRect(x: 0, y: 260, width: 320, height: 28)
         contentView.addSubview(appName)

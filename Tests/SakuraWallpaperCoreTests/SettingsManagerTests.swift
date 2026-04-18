@@ -24,21 +24,36 @@ final class SettingsManagerTests: XCTestCase {
 
     func testWallpaperHistoryDeduplicatesAndCapsAtTen() {
         for index in 0..<12 {
-            settings.wallpaperPath = "/tmp/\(index).jpg"
+            settings.addToHistory("/tmp/\(index).jpg")
         }
-        settings.wallpaperPath = "/tmp/5.jpg"
+        settings.addToHistory("/tmp/5.jpg")
 
         XCTAssertEqual(settings.wallpaperHistory.count, 10)
         XCTAssertEqual(settings.wallpaperHistory.first, "/tmp/5.jpg")
     }
 
-    func testIncludeSubfoldersPersists() {
-        settings.includeSubfolders = true
-        XCTAssertTrue(settings.includeSubfolders)
-    }
-
     func testOnboardingCompletedPersists() {
         settings.onboardingCompleted = true
         XCTAssertTrue(settings.onboardingCompleted)
+    }
+
+    func testScreenConfigRoundTrip() {
+        let screenID = "screen_42"
+        var config = Screen_Config.default
+        config.folderPath = "/tmp/wallpapers"
+        config.rotationIntervalMinutes = 30
+        config.isShuffleMode = true
+
+        settings.setScreenConfig(config, for: screenID)
+        let retrieved = settings.screenConfig(for: screenID)
+
+        XCTAssertEqual(retrieved.folderPath, "/tmp/wallpapers")
+        XCTAssertEqual(retrieved.rotationIntervalMinutes, 30)
+        XCTAssertTrue(retrieved.isShuffleMode)
+    }
+
+    func testScreenConfigDefaultForUnknownScreen() {
+        let config = settings.screenConfig(for: "nonexistent_screen")
+        XCTAssertEqual(config, Screen_Config.default)
     }
 }

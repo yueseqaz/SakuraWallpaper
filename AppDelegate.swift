@@ -20,41 +20,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         mainWindow = MainWindowController(wallpaperManager: wallpaperManager)
         setupStatusBar()
 
-        let screenFolderConfigs = SettingsManager.shared.screenFolderConfigs
-        let globalURL = SettingsManager.shared.wallpaperURL
-        let globalFolderURL = SettingsManager.shared.folderPath.map { URL(fileURLWithPath: $0) }
-
-        var restoredAny = false
-        for screen in NSScreen.screens {
-            let id = SettingsManager.screenIdentifier(screen)
-
-            if let config = screenFolderConfigs[id],
-               FileManager.default.fileExists(atPath: config.folderPath) {
-                wallpaperManager.setFolder(url: URL(fileURLWithPath: config.folderPath), for: screen, config: config)
-                restoredAny = true
-                continue
-            }
-
-            if let screenURL = SettingsManager.shared.wallpaperURL(for: screen),
-               FileManager.default.fileExists(atPath: screenURL.path) {
-                wallpaperManager.setWallpaper(url: screenURL, for: screen)
-                restoredAny = true
-                continue
-            }
-
-            if let url = globalURL, FileManager.default.fileExists(atPath: url.path) {
-                wallpaperManager.setWallpaper(url: url, for: screen)
-                restoredAny = true
-            }
-        }
-
-        if !restoredAny,
-           SettingsManager.shared.isFolderMode,
-           let folderURL = globalFolderURL,
-           FileManager.default.fileExists(atPath: folderURL.path) {
-            wallpaperManager.setFolder(url: folderURL)
-        }
-
+        SettingsManager.shared.runCleanSlateInitIfNeeded()
+        wallpaperManager.restoreAllScreens()
         mainWindow.runOnboardingIfNeeded()
     }
 
@@ -147,15 +114,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             item.representedObject = path
             item.target = self
 
-            if SettingsManager.shared.isFolderMode {
-                if path == SettingsManager.shared.folderPath {
-                    item.state = .on
-                }
-            } else {
-                if path == SettingsManager.shared.wallpaperPath {
-                    item.state = .on
-                }
+            // Check if this path is currently active on any screen
+            let isActive = NSScreen.screens.contains { screen in
+                let id = SettingsManager.screenIdentifier(screen)
+                let config = SettingsManager.shared.screenConfig(for: id)
+                return config.folderPath == path || config.wallpaperPath == path
             }
+            item.state = isActive ? .on : .off
 
             let icon = iconFor(path: path)
             item.image = icon
@@ -184,14 +149,33 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard FileManager.default.fileExists(atPath: path, isDirectory: &isDir) else { return }
         let url = URL(fileURLWithPath: path)
         
-        if isDir.boolValue {
-            wallpaperManager.setFolder(url: url)
-        } else {
-            SettingsManager.shared.isRotationEnabled = false
-            SettingsManager.shared.isShuffleMode = false
-            wallpaperManager.setWallpaper(url: url)
-            SettingsManager.shared.wallpaperPath = path
-            SettingsManager.shared.isFolderMode = false
+        // Track which screens we've already handled via sync group propagation
+        var handledScreenIDs = Set<String>()
+        
+        for screen in NSScreen.screens {
+            let id = SettingsManager.screenIdentifier(screen)
+            if handledScreenIDs.contains(id) { continue }
+            
+            if isDir.boolValue {
+                var config = SettingsManager.shared.screenConfig(for: id)
+                config.folderPath = url.path
+                config.isFolderMode = true
+                wallpaperManager.setFolder(url: url, for: screen, config: config)
+            } else {
+                wallpaperManager.setWallpaper(url: url, for: screen)
+            }
+            
+            // Mark this screen and all its synced peers as handled
+            handledScreenIDs.insert(id)
+            let config = SettingsManager.shared.screenConfig(for: id)
+            if config.isSynced {
+                for otherScreen in NSScreen.screens {
+                    let otherId = SettingsManager.screenIdentifier(otherScreen)
+                    if SettingsManager.shared.screenConfig(for: otherId).isSynced {
+                        handledScreenIDs.insert(otherId)
+                    }
+                }
+            }
         }
         
         mainWindow.updateUI()
@@ -268,11 +252,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func stopWallpaper() {
         wallpaperManager.stopAll()
-        SettingsManager.shared.wallpaperPath = nil
-        SettingsManager.shared.clearScreenWallpapers()
-        SettingsManager.shared.isFolderMode = false
-        SettingsManager.shared.folderPath = nil
-        SettingsManager.shared.clearAllFolderConfigs()
+        for screen in NSScreen.screens {
+            let id = SettingsManager.screenIdentifier(screen)
+            SettingsManager.shared.setScreenConfig(Screen_Config.default, for: id)
+        }
         mainWindow.updateUI()
         rebuildRecentMenu()
     }
@@ -355,16 +338,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 stateLabel = "ui.pausedAuto".localized
             }
             
-            let hasScreenFolders = !SettingsManager.shared.screenFolderConfigs.isEmpty
-            let isRotating = (SettingsManager.shared.isFolderMode && SettingsManager.shared.isRotationEnabled) || hasScreenFolders
-            let shuffleIcon = (isRotating && SettingsManager.shared.isShuffleMode && !hasScreenFolders) ? "🔀 " : ""
+            // Get config from first active screen
+            let firstActiveScreen = NSScreen.screens.first
+            let firstID = firstActiveScreen.map { SettingsManager.screenIdentifier($0) } ?? ""
+            let config = SettingsManager.shared.screenConfig(for: firstID)
             
-            if hasScreenFolders {
-                statusMenuItem.title = "menu.status".localized("menu.status.perScreen".localized) + " (\(stateLabel))"
-            } else if isRotating, let folderPath = SettingsManager.shared.folderPath {
+            let isRotating = config.isFolderMode && config.isRotationEnabled
+            let shuffleIcon = (isRotating && config.isShuffleMode) ? "🔀 " : ""
+            
+            if isRotating, let folderPath = config.folderPath {
                 let folderName = (folderPath as NSString).lastPathComponent
                 statusMenuItem.title = "\(shuffleIcon)\("menu.status.rotating".localized(folderName)) (\(stateLabel))"
-            } else if let url = wallpaperManager.currentFile {
+            } else if let url = firstActiveScreen.flatMap({ wallpaperManager.currentFile(for: SettingsManager.screenIdentifier($0)) }) {
                 let fileName = url.lastPathComponent
                 statusMenuItem.title = "menu.status.file".localized(fileName) + " (\(stateLabel))"
             } else {

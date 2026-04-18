@@ -37,6 +37,7 @@ let package = Package(
                 "build.sh"
             ],
             sources: [
+                "Screen_Config.swift",
                 "SettingsManager.swift",
                 "MediaType.swift",
                 "PlaylistBuilder.swift"

@@ -12,10 +12,11 @@ Current version: `v1.0.1`
 - **System Desktop Sync**: Images are applied directly as the system desktop picture; videos sync the currently playing frame to the system desktop on wallpaper changes and lock/screen saver start
 - **Rotation Mode**: Select a folder to automatically cycle through wallpapers
 - **Per-Screen Independent Rotation**: Each display can keep its own folder path, playlist, interval, and shuffle state
-- **Playlist Previews**: Interactive grid view with live previews of the currently selected item
-- **Shuffle Mode**: Randomize wallpaper rotation order
+- **Synchronized Linking**: Link screens together to mathematically guarantee their rotation timers switch wallpapers at the exact same millisecond
+- **Dual-Preview Mode**: Live playback of the current wallpaper directly within the settings window, alongside an interactive thumbnail grid for folder contents
+- **Mission Control Resilience**: Wallpapers seamlessly span across all virtual spaces and instantly recover during monitor reattachments
 - **Low Battery Auto Pause**: Automatically pauses wallpaper playback when battery level is at or below 20% and not charging
-- Multi-display support with independent wallpaper per screen
+- Multi-display support with robust monitor detection
 - Video wallpaper with automatic loop playback
 - Recent wallpapers history for quick switching (Supports folders)
 - Launch at login support
@@ -68,10 +69,11 @@ Requirements: macOS 12.0+, Xcode Command Line Tools
 2. Use the **Interval** stepper to set how often the wallpaper changes (in Rotation Mode)
 3. Enable **Shuffle** for randomized order
 4. Toggle **Battery Saver** to optimize energy usage while working in other apps or when the screen is off
-5. Use the screen dropdown to switch displays (the dropdown lists concrete screens only)
-6. Click **Sync All Screens** to apply the current screen configuration to all monitors
-7. Click **Clear then Repick** to clear current wallpaper and choose a new one
-8. Right-click the status bar icon for quick controls
+5. Use the screen dropdown to switch displays (prioritizes built-in displays first)
+6. Enable **Link Screens** to synchronize the current display's configuration and rotation timing with other linked screens
+7. Click **Stop Wallpaper** to clear the current screen's wallpaper
+8. Select a **New Screen Policy** to determine how newly connected monitors should behave (e.g., Inherit Sync Group)
+9. Right-click the status bar icon for quick controls
 
 ### System Desktop Sync Behavior
 

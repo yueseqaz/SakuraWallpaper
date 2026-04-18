@@ -26,6 +26,24 @@ class ScreenPlayer {
         setupContent()
     }
 
+    /// Resizes the player window and all its layers to match the current screen geometry.
+    /// Called by WallpaperManager when a screen is reattached at a different resolution (Bug 1 fix),
+    /// or when display arrangement changes cause an existing screen's frame to shift.
+    func resize(to screen: NSScreen) {
+        let newFrame = screen.frame
+        let newSize = newFrame.size
+        let newBounds = NSRect(origin: .zero, size: newSize)
+
+        // Use display: true so the window redraws immediately at the new frame.
+        window?.setFrame(newFrame, display: true)
+        window?.contentView?.frame = newBounds
+
+        if let layer = window?.contentView?.layer {
+            layer.frame = newBounds
+        }
+        playerLayer?.frame = newBounds
+    }
+
     func currentPlaybackTime() -> CMTime? {
         guard MediaType.detect(fileURL) == .video else { return nil }
         let time = avPlayer?.currentTime() ?? .zero
@@ -122,10 +140,6 @@ class ScreenPlayer {
         contentView.layer = imageLayer
 
         window?.orderBack(nil)
-    }
-
-    func setVolume(_ volume: Float) {
-        avPlayer?.volume = volume
     }
 
     func resumePlayback() {

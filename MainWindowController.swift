@@ -8,6 +8,19 @@ private final class DragDropContainerView: NSView {
     var onDragStateChanged: ((Bool) -> Void)?
     var canAcceptDrop: ((URL) -> Bool)?
 
+    var isHighlightedForDrop: Bool = false {
+        didSet { needsDisplay = true }
+    }
+
+    override var wantsUpdateLayer: Bool { true }
+
+    override func updateLayer() {
+        super.updateLayer()
+        layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
+        layer?.borderColor = isHighlightedForDrop ? NSColor.systemBlue.cgColor : NSColor.separatorColor.cgColor
+        layer?.shadowColor = NSColor.black.cgColor
+    }
+
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         registerForDraggedTypes([.fileURL])
@@ -71,9 +84,9 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private var selectFileButton: NSButton!
     private var selectFolderButton: NSButton!
     private var stopButton: NSButton!
-    private var applyAllButton: NSButton!
     private var launchSwitch: NSButton!
     private var pauseSwitch: NSButton!
+    private var syncDesktopSwitch: NSButton!
     private var rotationSwitch: NSButton!
     private var shuffleSwitch: NSButton!
     private var includeSubfoldersSwitch: NSButton!
@@ -82,8 +95,9 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private var intervalLabel: NSTextField!
     private var intervalPrefix: NSTextField!
     private var folderCountLabel: NSTextField!
-    private var inheritSourceLabel: NSTextField!
-    private var inheritSourcePopUp: NSPopUpButton!
+    private var syncCheckbox: NSButton!
+    private var newScreenPolicyLabel: NSTextField!
+    private var newScreenPolicyPopUp: NSPopUpButton!
     private var collectionView: NSCollectionView!
     private var scrollView: NSScrollView!
     private var dropZone: NSView!
@@ -96,9 +110,9 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
     init(wallpaperManager: WallpaperManager) {
         self.wallpaperManager = wallpaperManager
-        self.selectedScreen = NSScreen.main
+        self.selectedScreen = NSScreen.screens.first(where: { $0.isBuiltIn }) ?? NSScreen.main
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 500, height: 720),
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 756),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
@@ -115,8 +129,6 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
     private func setupUI() {
         guard let contentView = window?.contentView else { return }
-        contentView.wantsLayer = true
-        contentView.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
 
         contentView.addSubview(createHeader())
         contentView.addSubview(createScreenSelector())
@@ -128,8 +140,8 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
         NotificationCenter.default.addObserver(self, selector: #selector(rotationHappened), name: WallpaperManager.didRotateNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(statusChanged), name: WallpaperManager.playbackStateDidChangeNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(screenListChanged), name: WallpaperManager.screenListDidChangeNotification, object: nil)
 
-        wallpaperManager.setUIScreen(selectedScreen)
         updateUI()
     }
 
@@ -146,10 +158,16 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         }
     }
 
+    /// Called when a screen is detached and uiScreenID has been updated (Bug 6 fix).
+    /// Refreshes the screen picker so it reflects the current display topology.
+    @objc private func screenListChanged() {
+        DispatchQueue.main.async {
+            self.updateUI()
+        }
+    }
+
     private func createHeader() -> NSView {
-        let header = NSView(frame: NSRect(x: 0, y: 660, width: 500, height: 60))
-        header.wantsLayer = true
-        header.layer?.backgroundColor = NSColor.clear.cgColor
+        let header = NSView(frame: NSRect(x: 0, y: 684, width: 500, height: 60))
 
         let appIcon = NSTextField(labelWithString: "🌸")
         appIcon.font = NSFont.systemFont(ofSize: 30)
@@ -164,10 +182,12 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         header.addSubview(title)
 
         let statusContainer = NSView(frame: NSRect(x: 350, y: 10, width: 130, height: 40))
-        statusIndicator = NSView(frame: NSRect(x: 0, y: 14, width: 8, height: 8))
-        statusIndicator.wantsLayer = true
-        statusIndicator.layer?.cornerRadius = 4
-        statusIndicator.layer?.backgroundColor = NSColor.systemGray.cgColor
+        let indicatorBox = NSBox(frame: NSRect(x: 0, y: 14, width: 8, height: 8))
+        indicatorBox.boxType = .custom
+        indicatorBox.borderWidth = 0
+        indicatorBox.cornerRadius = 4
+        indicatorBox.fillColor = .systemGray
+        statusIndicator = indicatorBox
         statusContainer.addSubview(statusIndicator)
 
         statusLabel = NSTextField(labelWithString: "ui.status".localized("ui.notSet".localized))
@@ -177,19 +197,15 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         statusContainer.addSubview(statusLabel)
         header.addSubview(statusContainer)
 
-        let separator = NSView(frame: NSRect(x: 0, y: 0, width: 500, height: 1))
-        separator.wantsLayer = true
-        separator.layer?.backgroundColor = NSColor.separatorColor.cgColor
+        let separator = NSBox(frame: NSRect(x: 0, y: 0, width: 500, height: 1))
+        separator.boxType = .separator
         header.addSubview(separator)
 
         return header
     }
 
     private func createScreenSelector() -> NSView {
-        let container = NSView(frame: NSRect(x: 20, y: 610, width: 460, height: 40))
-        container.wantsLayer = true
-        container.layer?.cornerRadius = 8
-        container.layer?.backgroundColor = NSColor.clear.cgColor
+        let container = NSView(frame: NSRect(x: 20, y: 636, width: 460, height: 40))
 
         let label = NSTextField(labelWithString: "\("ui.screen".localized):")
         label.font = NSFont.systemFont(ofSize: 12, weight: .medium)
@@ -202,11 +218,11 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         screenPopUp.action = #selector(screenSelectionChanged)
         container.addSubview(screenPopUp)
 
-        applyAllButton = NSButton(title: "ui.applyToAll".localized, target: self, action: #selector(applyToAllScreens))
-        applyAllButton.bezelStyle = .rounded
-        applyAllButton.font = NSFont.systemFont(ofSize: 12)
-        applyAllButton.frame = NSRect(x: 315, y: 8, width: 130, height: 25)
-        container.addSubview(applyAllButton)
+        syncCheckbox = NSButton(checkboxWithTitle: "ui.syncScreens".localized, target: self, action: #selector(syncCheckboxChanged(_:)))
+        syncCheckbox.font = NSFont.systemFont(ofSize: 12)
+        syncCheckbox.frame = NSRect(x: 315, y: 10, width: 145, height: 20)
+        syncCheckbox.toolTip = "ui.syncScreens.tooltip".localized
+        container.addSubview(syncCheckbox)
 
         updateScreenMenu()
 
@@ -216,23 +232,31 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private func updateScreenMenu() {
         screenPopUp.removeAllItems()
 
-        // Individual Screens
-        for (index, screen) in NSScreen.screens.enumerated() {
+        // Sort screens: built-in display first, then external displays by name
+        let sortedScreens = NSScreen.screens.sorted { a, b in
+            if a.isBuiltIn != b.isBuiltIn { return a.isBuiltIn }
+            return a.localizedName < b.localizedName
+        }
+
+        for (index, screen) in sortedScreens.enumerated() {
             let displayName: String
             if #available(macOS 10.15, *) {
                 displayName = screen.localizedName
             } else {
                 displayName = "screen.display".localized(index + 1)
             }
-            let isBuiltIn = screen.isBuiltIn
-            let suffix = isBuiltIn ? "screen.builtIn".localized : ""
-            screenPopUp.addItem(withTitle: "\(displayName)\(suffix)")
+            let suffix = screen.isBuiltIn ? "screen.builtIn".localized : ""
+            let id = SettingsManager.screenIdentifier(screen)
+            let isLinked = SettingsManager.shared.screenConfig(for: id).isSynced
+            let linkIndicator = isLinked ? " 🔗" : ""
+            screenPopUp.addItem(withTitle: "\(displayName)\(suffix)\(linkIndicator)")
             screenPopUp.lastItem?.representedObject = screen
         }
 
-        if let selected = selectedScreen, let index = NSScreen.screens.firstIndex(of: selected) {
+        if let selected = selectedScreen,
+           let index = sortedScreens.firstIndex(of: selected) {
             screenPopUp.selectItem(at: index)
-        } else if let first = NSScreen.screens.first {
+        } else if let first = sortedScreens.first {
             selectedScreen = first
             screenPopUp.selectItem(at: 0)
         } else {
@@ -242,33 +266,21 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
     @objc private func screenSelectionChanged(_ sender: NSPopUpButton) {
         selectedScreen = sender.selectedItem?.representedObject as? NSScreen
-        wallpaperManager.setUIScreen(selectedScreen)
         updateUI()
     }
 
-    @objc private func applyToAllScreens() {
-        if let sourceScreen = selectedScreen,
-           let config = SettingsManager.shared.folderConfig(for: sourceScreen) {
-            let folderURL = URL(fileURLWithPath: config.folderPath)
-            for targetScreen in NSScreen.screens {
-                wallpaperManager.setFolder(url: folderURL, for: targetScreen, config: config)
-            }
-        } else if let url = wallpaperManager.currentFile {
-            wallpaperManager.setWallpaper(url: url)
-            SettingsManager.shared.wallpaperPath = url.path
-        }
+    @objc private func syncCheckboxChanged(_ sender: NSButton) {
+        guard let screen = selectedScreen else { return }
+        wallpaperManager.setSynced(sender.state == .on, for: screen)
         updateUI()
     }
 
     private func createPreviewContainer() -> NSView {
-        previewContainer = DragDropContainerView(frame: NSRect(x: 20, y: 320, width: 460, height: 280))
+        previewContainer = DragDropContainerView(frame: NSRect(x: 20, y: 348, width: 460, height: 280))
         previewContainer.wantsLayer = true
         previewContainer.layer?.cornerRadius = 16
-        previewContainer.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
-        previewContainer.layer?.borderColor = NSColor.separatorColor.cgColor
         previewContainer.layer?.borderWidth = 1
         previewContainer.layer?.masksToBounds = true
-        previewContainer.layer?.shadowColor = NSColor.black.cgColor
         previewContainer.layer?.shadowOpacity = 0.10
         previewContainer.layer?.shadowRadius = 8
         previewContainer.layer?.shadowOffset = NSSize(width: 0, height: -2)
@@ -283,9 +295,12 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         }
         previewContainer.toolTip = "ui.pickHint".localized
 
-        dropZone = NSView(frame: previewContainer.bounds)
-        dropZone.wantsLayer = true
-        dropZone.layer?.backgroundColor = NSColor.controlBackgroundColor.withAlphaComponent(0.95).cgColor
+        let dropBox = NSBox(frame: previewContainer.bounds)
+        dropBox.boxType = .custom
+        dropBox.borderWidth = 0
+        dropBox.cornerRadius = 16
+        dropBox.fillColor = NSColor.controlBackgroundColor.withAlphaComponent(0.95)
+        dropZone = dropBox
 
         dropIconView = NSImageView(frame: NSRect(x: 0, y: 152, width: 460, height: 44))
         dropIconView.imageAlignment = .alignCenter
@@ -360,11 +375,14 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         scrollView.drawsBackground = false
         previewContainer.addSubview(scrollView)
 
-        previewLoadingOverlay = NSView(frame: previewContainer.bounds)
-        previewLoadingOverlay.autoresizingMask = [.width, .height]
-        previewLoadingOverlay.wantsLayer = true
-        previewLoadingOverlay.layer?.backgroundColor = NSColor(calibratedWhite: 0.09, alpha: 0.76).cgColor
-        previewLoadingOverlay.isHidden = true
+        let overlayBox = NSBox(frame: previewContainer.bounds)
+        overlayBox.boxType = .custom
+        overlayBox.borderWidth = 0
+        overlayBox.cornerRadius = 16
+        overlayBox.fillColor = NSColor(calibratedWhite: 0.09, alpha: 0.76)
+        overlayBox.autoresizingMask = [.width, .height]
+        overlayBox.isHidden = true
+        previewLoadingOverlay = overlayBox
 
         previewLoadingSpinner = NSProgressIndicator(frame: NSRect(x: 0, y: 0, width: 20, height: 20))
         previewLoadingSpinner.style = .spinning
@@ -387,15 +405,11 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     }
 
     private func createInfoBar() -> NSView {
-        let bar = NSView(frame: NSRect(x: 20, y: 280, width: 460, height: 30))
-        bar.wantsLayer = true
-        bar.layer?.cornerRadius = 8
-        bar.layer?.backgroundColor = NSColor.clear.cgColor
-        bar.layer?.borderColor = NSColor.clear.cgColor
-        bar.layer?.borderWidth = 1
+        let bar = NSView(frame: NSRect(x: 20, y: 310, width: 460, height: 30))
 
         fileNameLabel = NSTextField(labelWithString: "ui.noWallpaper".localized)
         fileNameLabel.font = NSFont.systemFont(ofSize: 12, weight: .medium)
+        fileNameLabel.textColor = .labelColor
         fileNameLabel.lineBreakMode = .byTruncatingMiddle
         fileNameLabel.frame = NSRect(x: 10, y: 6, width: 330, height: 16)
         bar.addSubview(fileNameLabel)
@@ -411,10 +425,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     }
 
     private func createControls() -> NSView {
-        let controls = NSView(frame: NSRect(x: 20, y: 220, width: 460, height: 50))
-        controls.wantsLayer = true
-        controls.layer?.cornerRadius = 8
-        controls.layer?.backgroundColor = NSColor.clear.cgColor
+        let controls = NSView(frame: NSRect(x: 20, y: 252, width: 460, height: 50))
 
         selectFileButton = NSButton(title: "ui.selectFile".localized, target: self, action: #selector(selectFile))
         selectFileButton.bezelStyle = .rounded
@@ -431,56 +442,61 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         stopButton.controlSize = .regular
         stopButton.font = NSFont(name: "Avenir Next Demi Bold", size: 13) ?? NSFont.systemFont(ofSize: 13, weight: .semibold)
         stopButton.frame = NSRect(x: 230, y: 5, width: 180, height: 40)
+        stopButton.toolTip = "ui.stopWallpaperTooltip".localized
         controls.addSubview(stopButton)
 
         return controls
     }
 
     private func createSettings() -> NSView {
-        let settings = NSView(frame: NSRect(x: 20, y: 50, width: 460, height: 160))
-        settings.wantsLayer = true
-        settings.layer?.cornerRadius = 8
-        settings.layer?.backgroundColor = NSColor.clear.cgColor
-        settings.layer?.borderColor = NSColor.clear.cgColor
-        settings.layer?.borderWidth = 1
+        let settings = NSView(frame: NSRect(x: 20, y: 58, width: 460, height: 186))
 
         launchSwitch = NSButton(checkboxWithTitle: "ui.launchAtLogin".localized,
                                 target: self, action: #selector(launchSwitchChanged))
         launchSwitch.font = NSFont.systemFont(ofSize: 12)
-        launchSwitch.frame = NSRect(x: 0, y: 130, width: 150, height: 20)
+        launchSwitch.frame = NSRect(x: 0, y: 156, width: 150, height: 20)
         launchSwitch.state = SettingsManager.shared.launchAtLogin ? .on : .off
         settings.addSubview(launchSwitch)
 
         pauseSwitch = NSButton(checkboxWithTitle: "ui.pauseWhenInvisible".localized,
                                target: self, action: #selector(pauseSwitchChanged))
         pauseSwitch.font = NSFont.systemFont(ofSize: 12)
-        pauseSwitch.frame = NSRect(x: 160, y: 130, width: 200, height: 20)
+        pauseSwitch.frame = NSRect(x: 160, y: 156, width: 200, height: 20)
         pauseSwitch.state = SettingsManager.shared.pauseWhenInvisible ? .on : .off
         settings.addSubview(pauseSwitch)
+
+        syncDesktopSwitch = NSButton(checkboxWithTitle: "ui.syncDesktopWallpaper".localized,
+                                     target: self, action: #selector(syncDesktopSwitchChanged))
+        syncDesktopSwitch.font = NSFont.systemFont(ofSize: 12)
+        syncDesktopSwitch.frame = NSRect(x: 0, y: 130, width: 380, height: 20)
+        syncDesktopSwitch.state = SettingsManager.shared.syncDesktopWallpaper ? .on : .off
+        syncDesktopSwitch.toolTip = "ui.syncDesktopWallpaper.tooltip".localized
+        settings.addSubview(syncDesktopSwitch)
 
         rotationSwitch = NSButton(checkboxWithTitle: "ui.enableRotation".localized,
                                   target: self, action: #selector(rotationSwitchChanged))
         rotationSwitch.font = NSFont.systemFont(ofSize: 12)
         rotationSwitch.frame = NSRect(x: 0, y: 104, width: 120, height: 20)
-        rotationSwitch.state = SettingsManager.shared.isRotationEnabled ? .on : .off
+        rotationSwitch.state = Screen_Config.default.isRotationEnabled ? .on : .off
         settings.addSubview(rotationSwitch)
 
         shuffleSwitch = NSButton(checkboxWithTitle: "ui.shuffleMode".localized,
                                  target: self, action: #selector(shuffleSwitchChanged))
         shuffleSwitch.font = NSFont.systemFont(ofSize: 12)
         shuffleSwitch.frame = NSRect(x: 160, y: 104, width: 200, height: 20)
-        shuffleSwitch.state = SettingsManager.shared.isShuffleMode ? .on : .off
+        shuffleSwitch.state = Screen_Config.default.isShuffleMode ? .on : .off
         settings.addSubview(shuffleSwitch)
 
         includeSubfoldersSwitch = NSButton(checkboxWithTitle: "ui.includeSubfolders".localized,
                                            target: self, action: #selector(includeSubfoldersChanged))
         includeSubfoldersSwitch.font = NSFont.systemFont(ofSize: 12)
         includeSubfoldersSwitch.frame = NSRect(x: 0, y: 80, width: 180, height: 20)
-        includeSubfoldersSwitch.state = SettingsManager.shared.includeSubfolders ? .on : .off
+        includeSubfoldersSwitch.state = Screen_Config.default.includeSubfolders ? .on : .off
         settings.addSubview(includeSubfoldersSwitch)
 
         intervalPrefix = NSTextField(labelWithString: "ui.rotationInterval".localized + ":")
         intervalPrefix.font = NSFont.systemFont(ofSize: 12)
+        intervalPrefix.textColor = .labelColor
         intervalPrefix.frame = NSRect(x: 0, y: 52, width: 120, height: 20)
         settings.addSubview(intervalPrefix)
 
@@ -493,7 +509,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         formatter.allowsFloats = false
         formatter.minimum = 1
         intervalField.formatter = formatter
-        intervalField.integerValue = SettingsManager.shared.rotationIntervalMinutes
+        intervalField.integerValue = Screen_Config.default.rotationIntervalMinutes
         settings.addSubview(intervalField)
 
         intervalStepper = NSStepper(frame: NSRect(x: 175, y: 52, width: 15, height: 22))
@@ -501,12 +517,12 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         intervalStepper.maxValue = 1440
         intervalStepper.increment = 1
         intervalStepper.valueWraps = false
-        intervalStepper.integerValue = SettingsManager.shared.rotationIntervalMinutes
+        intervalStepper.integerValue = Screen_Config.default.rotationIntervalMinutes
         intervalStepper.target = self
         intervalStepper.action = #selector(intervalStepperChanged)
         settings.addSubview(intervalStepper)
 
-        intervalLabel = NSTextField(labelWithString: formatInterval(minutes: SettingsManager.shared.rotationIntervalMinutes))
+        intervalLabel = NSTextField(labelWithString: formatInterval(minutes: Screen_Config.default.rotationIntervalMinutes))
         intervalLabel.font = NSFont.systemFont(ofSize: 11)
         intervalLabel.textColor = .secondaryLabelColor
         intervalLabel.frame = NSRect(x: 200, y: 52, width: 250, height: 20)
@@ -518,55 +534,51 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         folderCountLabel.frame = NSRect(x: 0, y: 28, width: 430, height: 18)
         settings.addSubview(folderCountLabel)
         
-        inheritSourceLabel = NSTextField(labelWithString: "ui.newScreenInherit".localized + ":")
-        inheritSourceLabel.font = NSFont.systemFont(ofSize: 12)
-        inheritSourceLabel.frame = NSRect(x: 0, y: 4, width: 120, height: 20)
-        settings.addSubview(inheritSourceLabel)
-        
-        inheritSourcePopUp = NSPopUpButton(frame: NSRect(x: 125, y: 2, width: 300, height: 25))
-        inheritSourcePopUp.target = self
-        inheritSourcePopUp.action = #selector(inheritSourceChanged)
-        settings.addSubview(inheritSourcePopUp)
-        updateInheritSourceMenu()
+        newScreenPolicyLabel = NSTextField(labelWithString: "ui.newScreenPolicy".localized + ":")
+        newScreenPolicyLabel.font = NSFont.systemFont(ofSize: 12)
+        newScreenPolicyLabel.textColor = .labelColor
+        newScreenPolicyLabel.frame = NSRect(x: 0, y: 4, width: 120, height: 20)
+        settings.addSubview(newScreenPolicyLabel)
+
+        newScreenPolicyPopUp = NSPopUpButton(frame: NSRect(x: 125, y: 2, width: 200, height: 25))
+        newScreenPolicyPopUp.target = self
+        newScreenPolicyPopUp.action = #selector(newScreenPolicyChanged(_:))
+        newScreenPolicyPopUp.toolTip = "ui.newScreenPolicy.tooltip".localized
+        newScreenPolicyPopUp.addItem(withTitle: "ui.newScreenPolicy.inheritSyncGroup".localized)
+        newScreenPolicyPopUp.lastItem?.representedObject = New_Screen_Policy.inheritSyncGroup.rawValue
+        newScreenPolicyPopUp.addItem(withTitle: "ui.newScreenPolicy.blank".localized)
+        newScreenPolicyPopUp.lastItem?.representedObject = New_Screen_Policy.blank.rawValue
+        settings.addSubview(newScreenPolicyPopUp)
+
+
 
         return settings
     }
 
-    private func updateInheritSourceMenu() {
-        inheritSourcePopUp.removeAllItems()
-        
-        inheritSourcePopUp.addItem(withTitle: "ui.inheritPrimaryScreen".localized)
-        inheritSourcePopUp.lastItem?.representedObject = "__primary__"
-        
-        for (index, screen) in NSScreen.screens.enumerated() {
-            let displayName: String
-            if #available(macOS 10.15, *) {
-                displayName = screen.localizedName
-            } else {
-                displayName = "screen.display".localized(index + 1)
+    @objc private func newScreenPolicyChanged(_ sender: NSPopUpButton) {
+        guard let rawValue = sender.selectedItem?.representedObject as? String,
+              let policy = New_Screen_Policy(rawValue: rawValue) else { return }
+        SettingsManager.shared.newScreenPolicy = policy
+        updateNewScreenPolicyMenu()
+    }
+
+    private func updateNewScreenPolicyMenu() {
+        // Sync newScreenPolicyPopUp to current setting
+        let currentPolicy = SettingsManager.shared.newScreenPolicy
+        for (index, item) in newScreenPolicyPopUp.itemArray.enumerated() {
+            if let rawValue = item.representedObject as? String,
+               rawValue == currentPolicy.rawValue {
+                newScreenPolicyPopUp.selectItem(at: index)
+                break
             }
-            let suffix = screen.isBuiltIn ? "screen.builtIn".localized : ""
-            let title = "  \(displayName)\(suffix)"
-            inheritSourcePopUp.addItem(withTitle: title)
-            inheritSourcePopUp.lastItem?.representedObject = SettingsManager.screenIdentifier(screen)
-        }
-        
-        let settings = SettingsManager.shared
-        if settings.newScreenInheritanceMode == .specificScreen,
-           let sourceId = settings.newScreenInheritanceScreenId,
-           let targetItem = inheritSourcePopUp.itemArray.first(where: { ($0.representedObject as? String) == sourceId }) {
-            inheritSourcePopUp.select(targetItem)
-        } else {
-            inheritSourcePopUp.selectItem(at: 0)
         }
     }
 
     private func createFooter() -> NSView {
-        let footer = NSView(frame: NSRect(x: 0, y: 0, width: 500, height: 40))
+        let footer = NSView(frame: NSRect(x: 0, y: 0, width: 500, height: 50))
 
-        let separator = NSView(frame: NSRect(x: 20, y: 35, width: 460, height: 1))
-        separator.wantsLayer = true
-        separator.layer?.backgroundColor = NSColor.separatorColor.cgColor
+        let separator = NSBox(frame: NSRect(x: 20, y: 35, width: 460, height: 1))
+        separator.boxType = .separator
         footer.addSubview(separator)
 
         let author = NSTextField(labelWithString: "ui.madeBy".localized("❤️"))
@@ -633,12 +645,15 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         }
 
         if isDir.boolValue {
-            let config = ScreenFolderConfig(
+            let config = Screen_Config(
                 folderPath: url.path,
+                wallpaperPath: nil,
                 rotationIntervalMinutes: max(1, intervalField.integerValue),
                 isShuffleMode: (shuffleSwitch.state == .on),
                 isRotationEnabled: (rotationSwitch.state == .on),
-                includeSubfolders: (includeSubfoldersSwitch.state == .on)
+                includeSubfolders: (includeSubfoldersSwitch.state == .on),
+                isFolderMode: true,
+                isSynced: selectedScreen.map { SettingsManager.shared.screenConfig(for: SettingsManager.screenIdentifier($0)).isSynced } ?? true
             )
             if let screen = selectedScreen {
                 wallpaperManager.setFolder(url: url, for: screen, config: config)
@@ -652,17 +667,12 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
             guard type != .unsupported else {
                 throw WallpaperError.unsupportedFormat
             }
-
             if let screen = selectedScreen {
                 wallpaperManager.setWallpaper(url: url, for: screen)
-                SettingsManager.shared.clearFolderConfig(for: screen)
             } else {
-                SettingsManager.shared.isFolderMode = false
-                SettingsManager.shared.isRotationEnabled = false
-                SettingsManager.shared.isShuffleMode = false
-                SettingsManager.shared.clearAllFolderConfigs()
-                wallpaperManager.setWallpaper(url: url)
-                SettingsManager.shared.wallpaperPath = url.path
+                for screen in NSScreen.screens {
+                    wallpaperManager.setWallpaper(url: url, for: screen)
+                }
             }
         }
         updateUI()
@@ -683,14 +693,17 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
             wallpaperManager.stopWallpaper(for: screen)
         } else {
             wallpaperManager.stopAll()
-            SettingsManager.shared.wallpaperPath = nil
-            SettingsManager.shared.clearScreenWallpapers()
-            SettingsManager.shared.isFolderMode = false
-            SettingsManager.shared.folderPath = nil
-            SettingsManager.shared.clearAllFolderConfigs()
         }
         updateUI()
         (NSApp.delegate as? AppDelegate)?.rebuildRecentMenu()
+    }
+
+    @objc private func clearThenRepick() {
+        stopWallpaper()
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = true
+        openPicker(panel: panel)
     }
 
     @objc func launchSwitchChanged(_ sender: NSButton) {
@@ -701,70 +714,47 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         SettingsManager.shared.pauseWhenInvisible = (sender.state == .on)
         wallpaperManager.checkPlaybackState()
     }
-    
-    @objc func inheritSourceChanged(_ sender: NSPopUpButton) {
-        guard let value = sender.selectedItem?.representedObject as? String else { return }
-        if value == "__primary__" {
-            SettingsManager.shared.newScreenInheritanceMode = .primaryScreen
-            SettingsManager.shared.newScreenInheritanceScreenId = nil
-            return
-        }
-        SettingsManager.shared.newScreenInheritanceMode = .specificScreen
-        SettingsManager.shared.newScreenInheritanceScreenId = value
-    }
 
+    @objc func syncDesktopSwitchChanged(_ sender: NSButton) {
+        SettingsManager.shared.syncDesktopWallpaper = (sender.state == .on)
+    }
+    
     @objc func includeSubfoldersChanged(_ sender: NSButton) {
-        SettingsManager.shared.includeSubfolders = (sender.state == .on)
-        if let screen = selectedScreen, var config = SettingsManager.shared.folderConfig(for: screen) {
-            config.includeSubfolders = (sender.state == .on)
-            wallpaperManager.setFolder(url: URL(fileURLWithPath: config.folderPath), for: screen, config: config)
-        } else if selectedScreen == nil, !SettingsManager.shared.screenFolderConfigs.isEmpty {
-            for screen in NSScreen.screens {
-                guard var config = SettingsManager.shared.folderConfig(for: screen) else { continue }
-                config.includeSubfolders = (sender.state == .on)
-                wallpaperManager.setFolder(url: URL(fileURLWithPath: config.folderPath), for: screen, config: config)
-            }
-        } else if SettingsManager.shared.isFolderMode, let path = SettingsManager.shared.folderPath {
-            wallpaperManager.setFolder(url: URL(fileURLWithPath: path))
+        guard let screen = selectedScreen else { return }
+        let id = SettingsManager.screenIdentifier(screen)
+        var config = SettingsManager.shared.screenConfig(for: id)
+        config.includeSubfolders = (sender.state == .on)
+        if let folderPath = config.folderPath {
+            wallpaperManager.setFolder(url: URL(fileURLWithPath: folderPath), for: screen, config: config)
+        } else {
+            SettingsManager.shared.setScreenConfig(config, for: id)
+            wallpaperManager.propagateSettingsToSyncGroup(fromScreenID: id)
         }
         updateUI()
     }
 
     @objc func shuffleSwitchChanged(_ sender: NSButton) {
-        SettingsManager.shared.isShuffleMode = (sender.state == .on)
-        if let screen = selectedScreen, var config = SettingsManager.shared.folderConfig(for: screen) {
-            config.isShuffleMode = (sender.state == .on)
-            SettingsManager.shared.setFolderConfig(config, for: screen)
-            wallpaperManager.startRotationTimer()
-        } else if selectedScreen == nil, !SettingsManager.shared.screenFolderConfigs.isEmpty {
-            for screen in NSScreen.screens {
-                guard var config = SettingsManager.shared.folderConfig(for: screen) else { continue }
-                config.isShuffleMode = (sender.state == .on)
-                SettingsManager.shared.setFolderConfig(config, for: screen)
-            }
-            wallpaperManager.startRotationTimer()
-        }
+        guard let screen = selectedScreen else { return }
+        let id = SettingsManager.screenIdentifier(screen)
+        var config = SettingsManager.shared.screenConfig(for: id)
+        config.isShuffleMode = (sender.state == .on)
+        SettingsManager.shared.setScreenConfig(config, for: id)
+        wallpaperManager.propagateSettingsToSyncGroup(fromScreenID: id)
+        wallpaperManager.startRotationTimer()
         updateUI()
     }
 
     @objc func rotationSwitchChanged(_ sender: NSButton) {
-        SettingsManager.shared.isRotationEnabled = (sender.state == .on)
-        if let screen = selectedScreen, var config = SettingsManager.shared.folderConfig(for: screen) {
-            config.isRotationEnabled = (sender.state == .on)
-            SettingsManager.shared.setFolderConfig(config, for: screen)
-        } else if selectedScreen == nil, !SettingsManager.shared.screenFolderConfigs.isEmpty {
-            for screen in NSScreen.screens {
-                guard var config = SettingsManager.shared.folderConfig(for: screen) else { continue }
-                config.isRotationEnabled = (sender.state == .on)
-                SettingsManager.shared.setFolderConfig(config, for: screen)
-            }
-        }
+        guard let screen = selectedScreen else { return }
+        let id = SettingsManager.screenIdentifier(screen)
+        var config = SettingsManager.shared.screenConfig(for: id)
+        config.isRotationEnabled = (sender.state == .on)
+        SettingsManager.shared.setScreenConfig(config, for: id)
+        wallpaperManager.propagateSettingsToSyncGroup(fromScreenID: id)
         if sender.state == .on {
             wallpaperManager.startRotationTimer()
         } else {
-            // Timer is stopped inside startRotationTimer if guard fails, 
-            // but let's be explicit if needed. WallpaperManager handles it.
-            wallpaperManager.startRotationTimer() 
+            wallpaperManager.startRotationTimer()
         }
         updateUI()
     }
@@ -783,21 +773,14 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     }
 
     private func updateInterval(minutes: Int) {
-        SettingsManager.shared.rotationIntervalMinutes = minutes
+        guard let screen = selectedScreen else { return }
+        let id = SettingsManager.screenIdentifier(screen)
+        var config = SettingsManager.shared.screenConfig(for: id)
+        config.rotationIntervalMinutes = minutes
+        SettingsManager.shared.setScreenConfig(config, for: id)
+        wallpaperManager.propagateSettingsToSyncGroup(fromScreenID: id)
         intervalLabel.stringValue = formatInterval(minutes: minutes)
-        if let screen = selectedScreen, var config = SettingsManager.shared.folderConfig(for: screen) {
-            config.rotationIntervalMinutes = minutes
-            SettingsManager.shared.setFolderConfig(config, for: screen)
-        } else if selectedScreen == nil, !SettingsManager.shared.screenFolderConfigs.isEmpty {
-            for screen in NSScreen.screens {
-                guard var config = SettingsManager.shared.folderConfig(for: screen) else { continue }
-                config.rotationIntervalMinutes = minutes
-                SettingsManager.shared.setFolderConfig(config, for: screen)
-            }
-        }
-        if SettingsManager.shared.isFolderMode || !SettingsManager.shared.screenFolderConfigs.isEmpty {
-            wallpaperManager.startRotationTimer()
-        }
+        wallpaperManager.startRotationTimer()
     }
 
     private func formatInterval(minutes: Int) -> String {
@@ -819,15 +802,13 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private func suggestedPickerDirectoryURL() -> URL? {
         let selectedPath: String?
         if let screen = selectedScreen {
-            selectedPath =
-                wallpaperManager.wallpaperPath(for: screen)
-                ?? SettingsManager.shared.wallpaperPath(for: screen)
-                ?? SettingsManager.shared.folderConfig(for: screen)?.folderPath
+            let id = SettingsManager.screenIdentifier(screen)
+            let config = SettingsManager.shared.screenConfig(for: id)
+            selectedPath = wallpaperManager.wallpaperPath(for: screen)
+                ?? config.wallpaperPath
+                ?? config.folderPath
         } else {
-            selectedPath =
-                wallpaperManager.currentFile?.path
-                ?? SettingsManager.shared.wallpaperPath
-                ?? SettingsManager.shared.folderPath
+            selectedPath = nil
         }
 
         guard let path = selectedPath, !path.isEmpty else { return nil }
@@ -854,9 +835,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
     private func setDropHighlight(active: Bool) {
         guard dropZone.isHidden == false else { return }
-        previewContainer.layer?.borderColor = active
-            ? NSColor.systemBlue.cgColor
-            : NSColor.separatorColor.cgColor
+        previewContainer.isHighlightedForDrop = active
         dropLabel.textColor = active
             ? NSColor.systemBlue
             : .labelColor
@@ -886,32 +865,38 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
     func updateUI() {
         updateScreenMenu()
-        updateInheritSourceMenu()
-        wallpaperManager.setUIScreen(selectedScreen)
+        updateNewScreenPolicyMenu()
+
+        let selectedScreenID = selectedScreen.map { SettingsManager.screenIdentifier($0) } ?? ""
+        let config = SettingsManager.shared.screenConfig(for: selectedScreenID)
+
+        // Sync checkbox — only meaningful with multiple screens
+        syncCheckbox.state = config.isSynced ? .on : .off
+        syncCheckbox.isEnabled = NSScreen.screens.count > 1
 
         let activeScreen = selectedScreen ?? NSScreen.main ?? NSScreen.screens.first
-        stopButton.title = "\("ui.stopWallpaper".localized) (\("ui.screen".localized))"
-        stopButton.isEnabled = activeScreen.flatMap { wallpaperManager.wallpaperPath(for: $0) ?? SettingsManager.shared.wallpaperPath(for: $0) } != nil
-            || activeScreen.flatMap { SettingsManager.shared.folderConfig(for: $0) } != nil
-        applyAllButton.isEnabled = (activeScreen != nil && NSScreen.screens.count > 1)
-        
-        let selectedFolderConfig = activeScreen.flatMap { SettingsManager.shared.folderConfig(for: $0) }
-        let isFolderMode = selectedFolderConfig != nil
-        let isRotationEnabled = selectedFolderConfig?.isRotationEnabled ?? SettingsManager.shared.isRotationEnabled
-        let isShuffleMode = selectedFolderConfig?.isShuffleMode ?? SettingsManager.shared.isShuffleMode
-        let currentIncludeSubfolders = selectedFolderConfig?.includeSubfolders ?? SettingsManager.shared.includeSubfolders
-        let currentInterval = selectedFolderConfig?.rotationIntervalMinutes ?? SettingsManager.shared.rotationIntervalMinutes
+        stopButton.title = "ui.stopWallpaper".localized
+        stopButton.isEnabled = activeScreen.flatMap { wallpaperManager.wallpaperPath(for: $0) } != nil
+            || config.folderPath != nil
+
+        let isFolderMode = config.isFolderMode
+        let isRotationEnabled = config.isRotationEnabled
+        let isShuffleMode = config.isShuffleMode
+        let currentIncludeSubfolders = config.includeSubfolders
+        let currentInterval = config.rotationIntervalMinutes
+
         pauseSwitch.state = SettingsManager.shared.pauseWhenInvisible ? .on : .off
+        syncDesktopSwitch.state = SettingsManager.shared.syncDesktopWallpaper ? .on : .off
         intervalField.integerValue = currentInterval
         intervalStepper.integerValue = currentInterval
         intervalLabel.stringValue = formatInterval(minutes: currentInterval)
-        
+
         rotationSwitch.isEnabled = isFolderMode
         rotationSwitch.state = isRotationEnabled ? .on : .off
-        
+
         shuffleSwitch.isEnabled = isFolderMode && isRotationEnabled
         shuffleSwitch.state = isShuffleMode ? .on : .off
-        
+
         intervalField.isEnabled = isFolderMode && isRotationEnabled
         intervalStepper.isEnabled = isFolderMode && isRotationEnabled
         includeSubfoldersSwitch.state = currentIncludeSubfolders ? .on : .off
@@ -923,7 +908,8 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         folderCountLabel.textColor = isFolderMode ? .secondaryLabelColor : .tertiaryLabelColor
         if isFolderMode {
             let recursive = currentIncludeSubfolders ? "ui.recursiveEnabled".localized : "ui.recursiveDisabled".localized
-            folderCountLabel.stringValue = "ui.folderItems".localized(wallpaperManager.playlistItemCount, recursive)
+            let playlistCount = wallpaperManager.playlist(for: selectedScreenID).count
+            folderCountLabel.stringValue = "ui.folderItems".localized(playlistCount, recursive)
         } else {
             folderCountLabel.stringValue = ""
         }
@@ -933,11 +919,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
         if let screen = activeScreen {
             wallpaperPath = wallpaperManager.wallpaperPath(for: screen)
-                ?? SettingsManager.shared.wallpaperPath(for: screen)
             isCurrentlyPaused = wallpaperManager.isPaused || wallpaperManager.isScreenPaused(screen)
-        } else {
-            wallpaperPath = wallpaperManager.currentFile?.path ?? SettingsManager.shared.wallpaperPath
-            isCurrentlyPaused = wallpaperManager.isPaused
         }
 
         if let path = wallpaperPath,
@@ -947,8 +929,8 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
             let type = MediaType.detect(url)
 
             if isFolderMode {
-                let current = wallpaperManager.currentPlaylistIndex + 1
-                let total = wallpaperManager.playlist.count
+                let current = wallpaperManager.currentPlaylistIndex(for: selectedScreenID) + 1
+                let total = wallpaperManager.playlist(for: selectedScreenID).count
                 let isRotating = isFolderMode && isRotationEnabled
                 let shuffleIcon = (isShuffleMode && isRotating) ? "🔀 " : ""
                 fileNameLabel.stringValue = "\(shuffleIcon)\(filename) (\(current)/\(total))"
@@ -959,21 +941,23 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
             }
 
             let isAutoPaused = SettingsManager.shared.pauseWhenInvisible && wallpaperManager.isPausedInternally && !isCurrentlyPaused
-            if isCurrentlyPaused {
-                statusIndicator.layer?.backgroundColor = NSColor.systemYellow.cgColor
-                statusLabel.stringValue = "ui.status".localized("ui.pausedManual".localized)
-                statusLabel.textColor = .systemYellow
-                previewPlayer?.pause()
-            } else if isAutoPaused {
-                statusIndicator.layer?.backgroundColor = NSColor.systemOrange.cgColor
-                statusLabel.stringValue = "ui.status".localized("ui.pausedAuto".localized)
-                statusLabel.textColor = .systemOrange
-                previewPlayer?.pause()
-            } else {
-                statusIndicator.layer?.backgroundColor = NSColor.systemGreen.cgColor
-                statusLabel.stringValue = "ui.status".localized("ui.playing".localized)
-                statusLabel.textColor = .systemGreen
-                previewPlayer?.play()
+            if let indicator = statusIndicator as? NSBox {
+                if isCurrentlyPaused {
+                    indicator.fillColor = .systemYellow
+                    statusLabel.stringValue = "ui.status".localized("ui.pausedManual".localized)
+                    statusLabel.textColor = .systemYellow
+                    previewPlayer?.pause()
+                } else if isAutoPaused {
+                    indicator.fillColor = .systemOrange
+                    statusLabel.stringValue = "ui.status".localized("ui.pausedAuto".localized)
+                    statusLabel.textColor = .systemOrange
+                    previewPlayer?.pause()
+                } else {
+                    indicator.fillColor = .systemGreen
+                    statusLabel.stringValue = "ui.status".localized("ui.playing".localized)
+                    statusLabel.textColor = .systemGreen
+                    previewPlayer?.play()
+                }
             }
 
             showPreview(url: url, type: type)
@@ -983,7 +967,9 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
             fileNameLabel.stringValue = "ui.noWallpaper".localized
             fileTypeLabel.stringValue = ""
 
-            statusIndicator.layer?.backgroundColor = NSColor.tertiaryLabelColor.cgColor
+            if let indicator = statusIndicator as? NSBox {
+                indicator.fillColor = .tertiaryLabelColor
+            }
             statusLabel.stringValue = "ui.status".localized("ui.notSet".localized)
             statusLabel.textColor = .secondaryLabelColor
 
@@ -996,8 +982,12 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     }
 
     private func showPreview(url: URL, type: MediaType) {
+        let previewScreenID = selectedScreen.map { SettingsManager.screenIdentifier($0) } ?? ""
+        let previewConfig = SettingsManager.shared.screenConfig(for: previewScreenID)
+        let isFolder = previewConfig.isFolderMode
+
         if currentPreviewPath == url.path {
-            if SettingsManager.shared.isFolderMode || selectedScreen.flatMap({ SettingsManager.shared.folderConfig(for: $0) }) != nil {
+            if isFolder {
                 collectionView.reloadData()
             }
             return
@@ -1006,11 +996,6 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         currentPreviewPath = url.path
         clearPreview()
         dropZone.isHidden = true
-        
-        let previewFolderConfig = (selectedScreen ?? NSScreen.main ?? NSScreen.screens.first).flatMap {
-            SettingsManager.shared.folderConfig(for: $0)
-        }
-        let isFolder = previewFolderConfig != nil
         
         if isFolder {
             scrollView.isHidden = false
@@ -1089,7 +1074,13 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
     func runOnboardingIfNeeded() {
         guard !SettingsManager.shared.onboardingCompleted else { return }
-        if SettingsManager.shared.hasExistingSetup {
+        // Check if any screen has a non-default config
+        let hasExistingSetup = NSScreen.screens.contains { screen in
+            let id = SettingsManager.screenIdentifier(screen)
+            let config = SettingsManager.shared.screenConfig(for: id)
+            return config.folderPath != nil || config.wallpaperPath != nil
+        } || !SettingsManager.shared.wallpaperHistory.isEmpty
+        if hasExistingSetup {
             SettingsManager.shared.onboardingCompleted = true
             return
         }
@@ -1116,12 +1107,12 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         step2.messageText = "onboarding.step2.title".localized
         step2.informativeText = "onboarding.step2.message".localized
         step2.alertStyle = .informational
-        step2.addButton(withTitle: "onboarding.interval15".localized)
         step2.addButton(withTitle: "onboarding.interval5".localized)
+        step2.addButton(withTitle: "onboarding.interval15".localized)
         step2.addButton(withTitle: "onboarding.interval30".localized)
         let step2Result = step2.runModal()
         let minutes: Int
-        if step2Result == .alertSecondButtonReturn {
+        if step2Result == .alertFirstButtonReturn {
             minutes = 5
         } else if step2Result == .alertThirdButtonReturn {
             minutes = 30
@@ -1147,36 +1138,31 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     }
     func collectionView(_ collectionView: NSCollectionView, didSelectItemsAt indexPaths: Set<IndexPath>) {
         if let indexPath = indexPaths.first {
-            // Stop rotation when user manually picks a wallpaper
-            let hasPerScreenConfig = selectedScreen.flatMap { SettingsManager.shared.folderConfig(for: $0) } != nil
-            let shouldStopRotation = hasPerScreenConfig ? true : SettingsManager.shared.isRotationEnabled
-            if shouldStopRotation {
-                SettingsManager.shared.isRotationEnabled = false
-                if let screen = selectedScreen, var config = SettingsManager.shared.folderConfig(for: screen) {
-                    config.isRotationEnabled = false
-                    SettingsManager.shared.setFolderConfig(config, for: screen)
-                } else if selectedScreen == nil, !SettingsManager.shared.screenFolderConfigs.isEmpty {
-                    for screen in NSScreen.screens {
-                        guard var config = SettingsManager.shared.folderConfig(for: screen) else { continue }
-                        config.isRotationEnabled = false
-                        SettingsManager.shared.setFolderConfig(config, for: screen)
-                    }
-                }
-                wallpaperManager.startRotationTimer() // This will stop it because of the guard
+            guard let screen = selectedScreen else { return }
+            let id = SettingsManager.screenIdentifier(screen)
+            var config = SettingsManager.shared.screenConfig(for: id)
+            if config.isRotationEnabled {
+                config.isRotationEnabled = false
+                SettingsManager.shared.setScreenConfig(config, for: id)
+                wallpaperManager.propagateSettingsToSyncGroup(fromScreenID: id)
+                wallpaperManager.startRotationTimer()
             }
-            wallpaperManager.selectPlaylistItem(at: indexPath.item)
+            wallpaperManager.selectPlaylistItem(at: indexPath.item, for: screen)
             updateUI()
         }
     }
 
     func collectionView(_ collectionView: NSCollectionView, numberOfItemsInSection section: Int) -> Int {
-        return wallpaperManager.playlist.count
+        let id = selectedScreen.map { SettingsManager.screenIdentifier($0) } ?? ""
+        return wallpaperManager.playlist(for: id).count
     }
 
     func collectionView(_ collectionView: NSCollectionView, itemForRepresentedObjectAt indexPath: IndexPath) -> NSCollectionViewItem {
         let item = collectionView.makeItem(withIdentifier: ThumbnailItem.identifier, for: indexPath) as! ThumbnailItem
-        let url = wallpaperManager.playlist[indexPath.item]
-        let isActive = (indexPath.item == wallpaperManager.currentPlaylistIndex)
+        let id = selectedScreen.map { SettingsManager.screenIdentifier($0) } ?? ""
+        let playlist = wallpaperManager.playlist(for: id)
+        let url = playlist[indexPath.item]
+        let isActive = (indexPath.item == wallpaperManager.currentPlaylistIndex(for: id))
         item.configure(with: url, isActive: isActive)
         return item
     }

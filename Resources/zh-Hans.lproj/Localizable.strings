@@ -17,7 +17,7 @@
 "ui.chooseWallpaper" = "选择壁纸";
 "ui.selectFile" = "选择文件";
 "ui.selectFolder" = "选择文件夹";
-"ui.stopWallpaper" = "清除";
+"ui.stopWallpaper" = "清除后重选";
 "ui.noWallpaper" = "未选择壁纸";
 "ui.status" = "状态: %@";
 "ui.playing" = "正在运行";
@@ -27,6 +27,8 @@
 "ui.notSet" = "无";
 "ui.launchAtLogin" = "开机自启动";
 "ui.pauseWhenInvisible" = "省电模式";
+"ui.syncDesktopWallpaper" = "同步静态壁纸到锁屏和桌面";
+"ui.syncDesktopWallpaper.tooltip" = "开启后，樱花壁纸会将当前壁纸的静态副本推送给 macOS。图片立即生效；视频会截取当前帧。这样在应用不可见时，锁屏和桌面仍保持一致。";
 "ui.rotationInterval" = "轮播间隔";
 "ui.enableRotation" = "开启轮播";
 "ui.folderMode" = "轮播模式";
@@ -44,10 +46,6 @@
 "ui.formats" = "支持 MP4, MOV, GIF, PNG, JPG, WebP";
 "ui.tapToPick" = "点击此区域可从访达选择文件或文件夹";
 "ui.pickHint" = "在上方区域拖拽或点击，即可从访达选择壁纸";
-"ui.repickGuide" = "想更换壁纸？先点右侧“清除后重选”，再在上方区域重新选择";
-"ui.clearThenRepick" = "清除后重选";
-"ui.clearThenPickScreen" = "清除后重选（屏幕）";
-"ui.clearThenPickAll" = "清除后重选（全部）";
 "ui.loadingPreview" = "正在加载预览...";
 "ui.folderItems" = "文件数量: %d（%@）";
 "ui.recursiveEnabled" = "递归扫描";
@@ -112,5 +110,9 @@
 "about.featuresTitle" = "功能特性";
 "about.features" = "视频和图片壁纸\n多显示器支持\n最近使用壁纸\n开机自启动";
 
-"ui.newScreenInherit" = "新屏继承来源";
-"ui.inheritPrimaryScreen" = "主屏（默认）";
+"ui.syncScreens" = "联动屏幕";
+"ui.syncScreens.tooltip" = "勾选后，此屏幕将与所有已联动屏幕共享壁纸、文件夹和轮播设置。";
+"ui.newScreenPolicy" = "新屏策略";
+"ui.newScreenPolicy.inheritSyncGroup" = "继承同步组";
+"ui.newScreenPolicy.blank" = "空白启动";
+"ui.newScreenPolicy.tooltip" = "控制接入新显示器时的行为。";
