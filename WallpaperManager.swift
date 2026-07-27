@@ -30,6 +30,13 @@ public class WallpaperManager {
     private var transientDesktopSnapshotsByScreen: [String: URL] = [:]
     private var screensChangedWorkItem: DispatchWorkItem?
     private var accessedSecurityScopedURLs: [URL] = []
+    private let playbackStateQueue = DispatchQueue(label: "com.sakura.wallpaper.playback-state", qos: .userInitiated)
+    private var playbackStateCheckInFlight = false
+    private var playbackStateCheckPending = false
+    private var wallpaperWindowsNeedReordering = true
+    private var activeSpaceReorderWorkItem: DispatchWorkItem?
+    private var suppressWallpaperReorderingUntil: CFAbsoluteTime = 0
+    private var systemIsSleeping = false
 
     static let didRotateNotification = Notification.Name("WallpaperManagerDidRotate")
     static let playbackStateDidChangeNotification = Notification.Name("WallpaperManagerPlaybackStateDidChange")
@@ -63,7 +70,7 @@ public class WallpaperManager {
         )
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
-            selector: #selector(checkPlaybackState),
+            selector: #selector(activeSpaceChanged),
             name: NSWorkspace.activeSpaceDidChangeNotification,
             object: nil
         )
@@ -87,13 +94,13 @@ public class WallpaperManager {
         )
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
-            selector: #selector(checkPlaybackState),
+            selector: #selector(handleWake),
             name: NSWorkspace.didWakeNotification,
             object: nil
         )
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
-            selector: #selector(checkPlaybackState),
+            selector: #selector(handleWake),
             name: NSWorkspace.screensDidWakeNotification,
             object: nil
         )
@@ -113,6 +120,7 @@ public class WallpaperManager {
     }
 
     deinit {
+        activeSpaceReorderWorkItem?.cancel()
         stopKeepVisibleTimer()
         stopBatteryCheckTimer()
         stopSyncGroupTimer()
@@ -124,6 +132,7 @@ public class WallpaperManager {
 
 
     @objc private func handleSleep() {
+        systemIsSleeping = true
         if !isPausedInternally {
             isPausedInternally = true
             pauseAll()
@@ -132,8 +141,97 @@ public class WallpaperManager {
     }
 
     @objc public func checkPlaybackState() {
-        let shouldPause = shouldAutoPausePlayback()
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in
+                self?.checkPlaybackState()
+            }
+            return
+        }
 
+        guard !systemIsSleeping else { return }
+
+        guard SettingsManager.shared.pauseWhenInvisible, !players.isEmpty else {
+            applyAutoPauseState(shouldPause: false)
+            return
+        }
+
+        guard !playbackStateCheckInFlight else {
+            playbackStateCheckPending = true
+            return
+        }
+
+        playbackStateCheckInFlight = true
+        let screenFrames = quartzScreenFrames()
+        let currentPID = ProcessInfo.processInfo.processIdentifier
+
+        // WindowServer queries can stall while a Space animation is in progress.
+        playbackStateQueue.async { [weak self] in
+            guard let self else { return }
+            let battery = self.currentBatterySnapshot()
+            let desktopCovered = Self.isDesktopCovered(
+                screenFrames: screenFrames,
+                currentPID: currentPID
+            )
+            let shouldPause = WallpaperBehavior.shouldAutoPausePlayback(
+                pauseWhenInvisibleEnabled: true,
+                batteryLevel: battery?.level,
+                isCharging: battery?.isCharging ?? false,
+                isDesktopCovered: desktopCovered,
+                lowBatteryThreshold: self.lowBatteryPauseThreshold
+            )
+
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.playbackStateCheckInFlight = false
+
+                if !self.systemIsSleeping,
+                   !self.players.isEmpty,
+                   SettingsManager.shared.pauseWhenInvisible {
+                    self.applyAutoPauseState(shouldPause: shouldPause)
+                } else if !self.systemIsSleeping {
+                    self.applyAutoPauseState(shouldPause: false)
+                }
+
+                if self.playbackStateCheckPending {
+                    self.playbackStateCheckPending = false
+                    self.checkPlaybackState()
+                }
+            }
+        }
+    }
+
+    @objc private func activeSpaceChanged() {
+        wallpaperWindowsNeedReordering = true
+        suppressWallpaperReorderingUntil = CFAbsoluteTimeGetCurrent() + 0.4
+
+        if !isPaused && !isPausedInternally {
+            players.forEach { id, player in
+                guard !pausedScreens.contains(id) else { return }
+                player.beginSpaceTransition()
+            }
+        }
+
+        activeSpaceReorderWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self, !self.isPaused, !self.isPausedInternally else { return }
+            self.players.forEach { id, player in
+                guard !self.pausedScreens.contains(id) else { return }
+                player.endSpaceTransition()
+            }
+            self.showAll()
+        }
+        activeSpaceReorderWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: workItem)
+        checkPlaybackState()
+    }
+
+    @objc private func handleWake() {
+        systemIsSleeping = false
+        wallpaperWindowsNeedReordering = true
+        checkPlaybackState()
+    }
+
+    private func applyAutoPauseState(shouldPause: Bool) {
         guard shouldPause else {
             if isPausedInternally {
                 isPausedInternally = false
@@ -692,15 +790,16 @@ public class WallpaperManager {
     }
 
     @objc private func appBecameActive() {
-        if !isPaused {
+        wallpaperWindowsNeedReordering = true
+        if !isPaused && !isPausedInternally {
             resumeAll()
+            showAll()
         }
-        showAll()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-            if self?.isPaused == false {
+            if self?.isPaused == false && self?.isPausedInternally == false {
                 self?.resumeAll()
+                self?.showAll()
             }
-            self?.showAll()
         }
         checkPlaybackState()
     }
@@ -1146,10 +1245,15 @@ public class WallpaperManager {
     }
 
     private func showAll() {
+        guard CFAbsoluteTimeGetCurrent() >= suppressWallpaperReorderingUntil else { return }
+
+        let needsReordering = wallpaperWindowsNeedReordering
         players.forEach { id, player in
             guard !pausedScreens.contains(id) else { return }
+            guard needsReordering || player.window?.isVisible == false else { return }
             player.window?.orderBack(nil)
         }
+        wallpaperWindowsNeedReordering = false
     }
 
     private func startKeepVisibleTimer() {
@@ -1176,22 +1280,6 @@ public class WallpaperManager {
     private func stopBatteryCheckTimer() {
         batteryCheckTimer?.invalidate()
         batteryCheckTimer = nil
-    }
-
-    private func shouldPauseForLowBattery() -> Bool {
-        guard let battery = currentBatterySnapshot() else { return false }
-        return !battery.isCharging && battery.level <= lowBatteryPauseThreshold
-    }
-
-    private func shouldAutoPausePlayback() -> Bool {
-        let battery = currentBatterySnapshot()
-        return WallpaperBehavior.shouldAutoPausePlayback(
-            pauseWhenInvisibleEnabled: SettingsManager.shared.pauseWhenInvisible,
-            batteryLevel: battery?.level,
-            isCharging: battery?.isCharging ?? false,
-            isDesktopCovered: isDesktopCovered(),
-            lowBatteryThreshold: lowBatteryPauseThreshold
-        )
     }
 
     private func currentBatterySnapshot() -> (level: Int, isCharging: Bool)? {
@@ -1324,42 +1412,52 @@ public class WallpaperManager {
         url.path.contains("/SakuraWallpaper/lockscreen-current-")
     }
 
-    private func isDesktopCovered() -> Bool {
-        guard !players.isEmpty,
-              let windowList = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]
-        else {
-            return false
+    private func quartzScreenFrames() -> [CGRect] {
+        let screens = NSScreen.screens
+        let frames: [CGRect] = screens.compactMap { screen in
+            guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else {
+                return nil
+            }
+            return CGDisplayBounds(CGDirectDisplayID(number.uint32Value))
         }
+        return frames.count == screens.count ? frames : []
+    }
 
-        let screenFrames = NSScreen.screens.map(\.frame)
-        let currentPID = ProcessInfo.processInfo.processIdentifier
+    private static func isDesktopCovered(screenFrames: [CGRect], currentPID: pid_t) -> Bool {
+        guard !screenFrames.isEmpty,
+              let windowList = CGWindowListCopyWindowInfo(
+                [.optionOnScreenOnly, .excludeDesktopElements],
+                kCGNullWindowID
+              ) as? [[String: Any]] else { return false }
 
-        for window in windowList {
-            guard let layer = window[kCGWindowLayer as String] as? Int, layer == 0 else { continue }
+        let coveringWindowFrames = windowList.compactMap { window -> CGRect? in
+            guard let layer = window[kCGWindowLayer as String] as? Int, layer == 0 else { return nil }
 
             let alpha = window[kCGWindowAlpha as String] as? Double ?? 1
-            guard alpha > 0.01 else { continue }
+            guard alpha > 0.01 else { return nil }
 
             if let ownerPID = window[kCGWindowOwnerPID as String] as? pid_t, ownerPID == currentPID {
-                continue
+                return nil
             }
 
             let ownerName = window[kCGWindowOwnerName as String] as? String ?? ""
             if ownerName == "Dock" || ownerName == "Window Server" {
-                continue
+                return nil
             }
 
             guard let boundsDictionary = window[kCGWindowBounds as String] as? [String: Any],
                   let bounds = CGRect(dictionaryRepresentation: boundsDictionary as CFDictionary),
                   bounds.width > 32,
-                  bounds.height > 32,
-                  screenFrames.contains(where: { $0.intersects(bounds) }) else {
-                continue
-            }
+                  bounds.height > 32 else { return nil }
 
-            return true
+            return bounds
         }
 
-        return false
+        // Playback is global, so keep it running while any configured desktop remains visible.
+        return screenFrames.allSatisfy { screenFrame in
+            coveringWindowFrames.contains { windowFrame in
+                WallpaperBehavior.isScreenCovered(screenFrame, by: windowFrame)
+            }
+        }
     }
 }

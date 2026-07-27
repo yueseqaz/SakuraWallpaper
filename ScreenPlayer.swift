@@ -11,6 +11,7 @@ class ScreenPlayer {
     private let screen: NSScreen
     private var fileURL: URL
     private var fitMode: WallpaperFitMode
+    private var shouldResumeAfterSpaceTransition = false
 
     init(fileURL: URL, screen: NSScreen, fitMode: WallpaperFitMode) {
         self.screen = screen
@@ -196,15 +197,30 @@ class ScreenPlayer {
 
     func resumePlayback() {
         guard let player = avPlayer else { return }
-        let currentTime = player.currentTime()
-        player.seek(to: currentTime) { [weak self] _ in
-            self?.avPlayer?.play()
-            self?.avPlayer?.rate = 1.0
-        }
+        shouldResumeAfterSpaceTransition = false
+        guard player.timeControlStatus != .playing else { return }
+        player.playImmediately(atRate: 1.0)
     }
 
     func pausePlayback() {
+        shouldResumeAfterSpaceTransition = false
         avPlayer?.pause()
+    }
+
+    func beginSpaceTransition() {
+        guard let player = avPlayer else { return }
+        if player.timeControlStatus != .paused {
+            shouldResumeAfterSpaceTransition = true
+        }
+    }
+
+    func endSpaceTransition() {
+        guard shouldResumeAfterSpaceTransition, let player = avPlayer else { return }
+        shouldResumeAfterSpaceTransition = false
+
+        // Toggling the timebase wakes rendering without clearing the displayed frame.
+        player.pause()
+        player.playImmediately(atRate: 1.0)
     }
 
     func restartPlayer() {
