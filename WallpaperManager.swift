@@ -116,6 +116,21 @@ public class WallpaperManager {
             name: Notification.Name("com.apple.screensaver.didstart"),
             object: nil
         )
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(handleScreenUnlocked(_:)),
+            name: Notification.Name("com.apple.screenIsUnlocked"),
+            object: nil
+        )
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(handleScreenUnlocked(_:)),
+            name: Notification.Name("com.apple.screensaver.didstop"),
+            object: nil
+        )
+        // Purge orphaned lock-screen snapshots left behind by a previous
+        // process that exited before the unlock notification could fire.
+        purgeStaleSnapshotCache()
         startBatteryCheckTimer()
     }
 
@@ -428,6 +443,18 @@ public class WallpaperManager {
         syncCurrentWallpaperToSystemDesktop()
     }
 
+    /// When the screen unlocks (or the screensaver stops), drop the transient
+    /// lock-screen snapshot and restore the user's original desktop picture.
+    /// The next lock event will capture a fresh frame, so there is no reason
+    /// to keep the file on disk while the session is interactive.
+    @objc private func handleScreenUnlocked(_ notification: Notification) {
+        clearAllTransientDesktopSnapshots()
+        for screen in NSScreen.screens {
+            let id = SettingsManager.screenIdentifier(screen)
+            _ = restoreOriginalDesktop(for: screen, screenID: id)
+        }
+    }
+
     private func syncCurrentWallpaperToSystemDesktop() {
         guard SettingsManager.shared.syncDesktopWallpaper else { return }
         for screen in NSScreen.screens {
@@ -630,6 +657,23 @@ public class WallpaperManager {
     private func makeTransientSnapshotURL(for screenID: String) -> URL {
         let directory = fileManager.temporaryDirectory.appendingPathComponent("SakuraWallpaper", isDirectory: true)
         return directory.appendingPathComponent("lockscreen-current-\(screenID)-\(UUID().uuidString).jpg")
+    }
+
+    /// Removes orphaned lock-screen snapshots left in the temp cache by a
+    /// previous process.  The in-memory `transientDesktopSnapshotsByScreen`
+    /// map is lost when the app terminates, so any files still on disk at
+    /// launch would otherwise accumulate indefinitely.  Safe to call before
+    /// any snapshot is registered; `writeDesktopSnapshot` recreates the
+    /// directory on demand.
+    private func purgeStaleSnapshotCache() {
+        let dir = fileManager.temporaryDirectory.appendingPathComponent("SakuraWallpaper", isDirectory: true)
+        guard
+            let staleFiles = try? fileManager.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil),
+            !staleFiles.isEmpty
+        else { return }
+        for url in staleFiles where url.lastPathComponent.hasPrefix("lockscreen-current-") {
+            try? fileManager.removeItem(at: url)
+        }
     }
 
     private func replaceTransientDesktopSnapshot(for screenID: String, with newURL: URL) {
