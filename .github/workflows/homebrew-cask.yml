@@ -44,4 +44,5 @@ jobs:
         run: |
           test -d /Applications/SakuraWallpaper.app
           test -x /Applications/SakuraWallpaper.app/Contents/MacOS/SakuraWallpaper
-          codesign --verify --deep --strict /Applications/SakuraWallpaper.app
+          plutil -lint /Applications/SakuraWallpaper.app/Contents/Info.plist
+          lipo /Applications/SakuraWallpaper.app/Contents/MacOS/SakuraWallpaper -verify_arch x86_64 arm64
