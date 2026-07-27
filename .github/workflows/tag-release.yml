@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Homebrew dependencies
         run: |
@@ -53,3 +55,33 @@ jobs:
           name: ${{ github.ref_name }}
           files: SakuraWallpaper.dmg
           generate_release_notes: true
+
+      - name: Update Homebrew Cask
+        env:
+          APP_VERSION: ${{ steps.version.outputs.app_version }}
+        shell: bash
+        run: |
+          cask_sha256="$(shasum -a 256 SakuraWallpaper.dmg | awk '{print $1}')"
+
+          git fetch origin main
+          git switch --force-create cask-update origin/main
+
+          ruby - "$APP_VERSION" "$cask_sha256" <<'RUBY'
+          version, sha256 = ARGV
+          path = "Casks/sakura-wallpaper.rb"
+          content = File.read(path)
+          content = content.sub(/  version "[^"]+"/, "  version \"#{version}\"")
+          content = content.sub(/  sha256 "[0-9a-f]+"/, "  sha256 \"#{sha256}\"")
+          File.write(path, content)
+          RUBY
+
+          if git diff --quiet -- Casks/sakura-wallpaper.rb; then
+            echo "Homebrew Cask already matches v${APP_VERSION}."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/sakura-wallpaper.rb
+          git commit -m "chore: update Homebrew Cask to v${APP_VERSION} [skip ci]"
+          git push origin HEAD:main

@@ -106,10 +106,19 @@
 // About
 "about.title" = "About SakuraWallpaper";
 "about.version" = "Version %@";
-"about.description" = "A lightweight video & image\nwallpaper app for macOS";
+"about.description" = "A focused wallpaper companion for macOS";
+"about.capabilitiesTitle" = "Designed for every desktop";
 "about.formatsTitle" = "Supported Formats";
-"about.featuresTitle" = "Features";
-"about.features" = "Video & Image Wallpaper\nMulti-Display Support\nRecent Wallpapers\nLaunch at Login";
+"about.feature.displays.title" = "Multi-display";
+"about.feature.displays.detail" = "Independent per screen";
+"about.feature.rotation.title" = "Folder rotation";
+"about.feature.rotation.detail" = "Timed or shuffled";
+"about.feature.sync.title" = "Desktop sync";
+"about.feature.sync.detail" = "Consistent system wallpaper";
+"about.feature.battery.title" = "Battery aware";
+"about.feature.battery.detail" = "Pauses when power is low";
+"about.footer" = "Open source · Made by sakura";
+"about.openGitHub" = "View on GitHub";
 
 "ui.syncScreens" = "Link Screens";
 "ui.syncScreens.tooltip" = "When checked, this screen shares its wallpaper, folder, and rotation settings with all other linked screens.";

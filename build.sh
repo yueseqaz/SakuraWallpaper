@@ -3,7 +3,7 @@
 APP_NAME="SakuraWallpaper"
 BUILD_DIR="build"
 APP_DIR="$BUILD_DIR/$APP_NAME.app"
-DEFAULT_APP_VERSION="1.0.1"
+DEFAULT_APP_VERSION="1.0.2"
 APP_VERSION="${APP_VERSION:-$DEFAULT_APP_VERSION}"
 
 # 清理
@@ -70,11 +70,6 @@ rm "${BINARY}_arm64" "${BINARY}_x86_64"
 echo "Verifying universal binary..."
 lipo -info "$BINARY"
 
-# 代码签名 (ad-hoc) — 让 macOS TCC 能够在多次启动之间识别应用，
-# 避免每次启动都重复弹出下载文件夹访问权限提示
-echo "Code signing..."
-codesign --sign - --entitlements SakuraWallpaper.entitlements --force --deep "$APP_DIR"
-
 # 复制资源
 cp -R Resources "$APP_DIR/Contents/"
 
@@ -106,6 +101,10 @@ cat > "$APP_DIR/Contents/Info.plist" << EOF
 </dict>
 </plist>
 EOF
+
+# 资源和 Info.plist 写入完成后再签名，避免后续写入破坏签名封装。
+echo "Code signing..."
+codesign --sign - --entitlements SakuraWallpaper.entitlements --force --deep "$APP_DIR"
 
 echo "Done! App: $APP_DIR"
 

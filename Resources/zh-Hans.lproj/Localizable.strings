@@ -106,10 +106,19 @@
 // About
 "about.title" = "关于樱花壁纸";
 "about.version" = "版本 %@";
-"about.description" = "macOS 轻量级视频和图片\n壁纸应用";
+"about.description" = "专注、轻量的 macOS 壁纸伴侣";
+"about.capabilitiesTitle" = "为每一块桌面而设计";
 "about.formatsTitle" = "支持格式";
-"about.featuresTitle" = "功能特性";
-"about.features" = "视频和图片壁纸\n多显示器支持\n最近使用壁纸\n开机自启动";
+"about.feature.displays.title" = "多显示器";
+"about.feature.displays.detail" = "每块屏幕独立设置";
+"about.feature.rotation.title" = "文件夹轮播";
+"about.feature.rotation.detail" = "定时切换或随机播放";
+"about.feature.sync.title" = "桌面同步";
+"about.feature.sync.detail" = "保持系统壁纸一致";
+"about.feature.battery.title" = "电量感知";
+"about.feature.battery.detail" = "低电量时自动暂停";
+"about.footer" = "开源 · sakura 制作";
+"about.openGitHub" = "在 GitHub 查看";
 
 "ui.syncScreens" = "联动屏幕";
 "ui.syncScreens.tooltip" = "勾选后，此屏幕将与所有已联动屏幕共享壁纸、文件夹和轮播设置。";
