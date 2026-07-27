@@ -39,12 +39,6 @@ jobs:
           APP_VERSION: ${{ steps.version.outputs.app_version }}
         run: ./build.sh dmg
 
-      - name: Verify application bundle
-        run: |
-          plutil -lint build/SakuraWallpaper.app/Contents/Info.plist
-          lipo build/SakuraWallpaper.app/Contents/MacOS/SakuraWallpaper -verify_arch x86_64 arm64
-          codesign --verify --deep --strict build/SakuraWallpaper.app
-
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:

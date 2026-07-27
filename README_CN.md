@@ -1,8 +1,6 @@
 # macOS video wallpaper app built with Swift
 # SakuraWallpaper
 
-[![Homebrew Cask](https://github.com/yueseqaz/SakuraWallpaper/actions/workflows/homebrew-cask.yml/badge.svg)](https://github.com/yueseqaz/SakuraWallpaper/actions/workflows/homebrew-cask.yml)
-
 macOS 轻量级视频和图片壁纸应用。
 当前版本：`v1.0.1`
 
@@ -60,7 +58,6 @@ Sakura 至上。
 或者
 ```
 brew tap yueseqaz/sakura-wallpaper https://github.com/yueseqaz/SakuraWallpaper.git
-brew trust --cask yueseqaz/sakura-wallpaper/sakura-wallpaper
 brew install --cask yueseqaz/sakura-wallpaper/sakura-wallpaper
 ```
 
