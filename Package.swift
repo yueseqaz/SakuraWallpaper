@@ -7,8 +7,7 @@ let package = Package(
         .macOS(.v12)
     ],
     products: [
-        .library(name: "SakuraWallpaperCore", targets: ["SakuraWallpaperCore"]),
-        .executable(name: "sakura-mcp", targets: ["sakura-mcp"])
+        .library(name: "SakuraWallpaperCore", targets: ["SakuraWallpaperCore"])
     ],
     targets: [
         .target(
@@ -22,7 +21,6 @@ let package = Package(
                 "Tests",
                 "AppDelegate.swift",
                 "MainWindowController.swift",
-                "MCPGUIControlServer.swift",
                 "AboutWindowController.swift",
                 "main.swift",
                 "AppIcon.icns",
@@ -40,7 +38,6 @@ let package = Package(
                 "Screen_Config.swift",
                 "SettingsManager.swift",
                 "WallpaperBehavior.swift",
-                "MCPControlTypes.swift",
                 "MediaType.swift",
                 "PlaylistBuilder.swift",
                 "AsyncWorkLimiter.swift",
@@ -60,20 +57,10 @@ let package = Package(
                 .linkedFramework("IOKit")
             ]
         ),
-        .executableTarget(
-            name: "sakura-mcp",
-            dependencies: ["SakuraWallpaperCore"],
-            path: "Sources/sakura-mcp"
-        ),
         .testTarget(
             name: "SakuraWallpaperCoreTests",
             dependencies: ["SakuraWallpaperCore"],
             path: "Tests/SakuraWallpaperCoreTests"
-        ),
-        .testTarget(
-            name: "sakura-mcpTests",
-            dependencies: ["sakura-mcp"],
-            path: "Tests/sakura-mcpTests"
         )
     ]
 )

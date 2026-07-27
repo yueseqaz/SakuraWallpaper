@@ -1,6 +1,8 @@
 # macOS video wallpaper app built with Swift
 # SakuraWallpaper
 
+[![Homebrew Cask](https://github.com/yueseqaz/SakuraWallpaper/actions/workflows/homebrew-cask.yml/badge.svg)](https://github.com/yueseqaz/SakuraWallpaper/actions/workflows/homebrew-cask.yml)
+
 macOS 轻量级视频和图片壁纸应用。
 当前版本：`v1.0.1`
 
@@ -57,7 +59,9 @@ Sakura 至上。
 从 [Releases](https://github.com/yueseqaz/SakuraWallpaper/releases) 下载最新的 `SakuraWallpaper.dmg`，将 SakuraWallpaper 拖入应用程序文件夹。
 或者
 ```
-brew install --cask yueseqaz/tap/sakura-wallpaper
+brew tap yueseqaz/sakura-wallpaper https://github.com/yueseqaz/SakuraWallpaper.git
+brew trust --cask yueseqaz/sakura-wallpaper/sakura-wallpaper
+brew install --cask yueseqaz/sakura-wallpaper/sakura-wallpaper
 ```
 
 ### 从源码构建
@@ -70,77 +74,6 @@ open build/SakuraWallpaper.app
 ```
 
 要求: macOS 12.0+, Xcode Command Line Tools
-
-## MCP — AI 智能体控制
-
-SakuraWallpaper 内置 **MCP (Model Context Protocol) 服务器**，让 AI 智能体（Claude Desktop、Cursor、Codex）直接操控你的壁纸。二进制文件已打包在 app 中，无需额外下载或编译。
-
-### 接入 Claude Desktop
-
-在 `claude_desktop_config.json` 中添加：
-
-```json
-{
-  "mcpServers": {
-    "sakura-wallpaper": {
-      "command": "/Applications/SakuraWallpaper.app/Contents/Resources/sakura-mcp"
-    }
-  }
-}
-```
-
-重启 Claude Desktop 后，你可以直接说：
-- "帮我把壁纸换成一张极简山水风景图"
-- "暂停所有壁纸"
-- "把我的外接显示器切到下一张壁纸"
-- "让笔记本屏幕每 10 分钟从 ~/图片/自然 文件夹随机切换壁纸"
-
-> **提示:** 如果 SakuraWallpaper 安装在其他位置，请相应调整路径。
-
-### AI 自安装提示词
-
-如果你的 AI 智能体没有预设连接，将以下提示词粘贴给它，它会自行找到并启动 MCP 服务：
-
-```
-请帮我设置 SakuraWallpaper 的 MCP 服务器：
-
-1. 执行: ls /Applications/SakuraWallpaper.app/Contents/Resources/sakura-mcp
-2. 如果找到，通过 stdio 启动它。这是一个 MCP 服务器，提供 9 个 JSON-RPC 工具
-3. 如果未找到，执行: cd /path/to/SakuraWallpaper && swift build --product sakura-mcp
-   然后启动 .build/debug/sakura-mcp
-4. 可用工具: list_screens, get_status, set_wallpaper, set_folder,
-   stop_wallpaper, pause_resume, next_wallpaper, get_settings, update_settings
-5. 连接成功后，我可以让你帮我控制壁纸 — 设置图片/视频、管理文件夹、
-   暂停/恢复、调整轮播设置等
-```
-
-### MCP 与主软件的协同方式
-
-MCP 现在按“安全遥控器”的方式工作，避免变成第二个抢壁纸的程序：
-
-| 情况 | 行为 |
-|------|------|
-| SakuraWallpaper 主软件已经打开 | MCP 会把壁纸指令转交给正在运行的主软件，由主软件统一控制壁纸 |
-| SakuraWallpaper 主软件没有打开 | MCP 会启动自己的轻量壁纸引擎，独立控制壁纸 |
-| 已经有一个独立 MCP 正在控制壁纸 | 第二个独立 MCP 会拒绝壁纸控制请求，不会再创建另一套壁纸引擎 |
-| MCP 只是转发给主软件 | stdio 会话结束后，MCP 进程会正常退出 |
-| MCP 独立控制壁纸 | stdin 关闭后，MCP 会继续存活，保证壁纸窗口不会消失 |
-
-这样可以避免多个壁纸引擎同时抢桌面导致闪烁，同时保留“主软件关闭时 AI 仍可控制壁纸”的能力。
-
-### 可用 MCP 工具
-
-| 工具 | 说明 |
-|------|------|
-| `list_screens` | 列出所有显示器 |
-| `get_status` | 查看每块屏幕的当前壁纸状态 |
-| `set_wallpaper` | 为指定/全部屏幕设置单张图片或视频 |
-| `set_folder` | 为指定/全部屏幕设置文件夹轮播 |
-| `stop_wallpaper` | 停止指定/全部屏幕的壁纸 |
-| `pause_resume` | 暂停或恢复播放 |
-| `next_wallpaper` | 切换到下一张壁纸 |
-| `get_settings` | 读取当前配置 |
-| `update_settings` | 修改轮播间隔、随机、适配模式等 |
 
 ## 使用方法
 
@@ -208,12 +141,8 @@ SakuraWallpaper/
 ├── main.swift                 # 入口文件
 ├── build.sh                   # 构建脚本
 ├── AppIcon.icns               # 应用图标
-├── Sources/sakura-mcp/        # MCP 服务器 (AI 智能体控制)
-│   ├── main.swift             #   入口
-│   ├── MCPServer.swift        #   JSON-RPC stdio 传输
-│   ├── ToolRegistry.swift     #   工具分发
-│   ├── IPCSync.swift          #   通知中心同步
-│   └── Tools/                 #   9 个 MCP 工具
+├── Casks/
+│   └── sakura-wallpaper.rb    # Homebrew Cask
 ├── Resources/
 │   ├── en.lproj/              # 英文字符串
 │   └── zh-Hans.lproj/         # 中文字符串

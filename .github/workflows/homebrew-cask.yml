@@ -1,0 +1,47 @@
+name: Homebrew Cask
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "Casks/**"
+      - ".github/workflows/homebrew-cask.yml"
+  pull_request:
+    paths:
+      - "Casks/**"
+      - ".github/workflows/homebrew-cask.yml"
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Register repository as a tap
+        run: |
+          brew tap yueseqaz/sakura-wallpaper "$GITHUB_WORKSPACE"
+          if brew trust --help >/dev/null 2>&1; then
+            brew trust --cask yueseqaz/sakura-wallpaper/sakura-wallpaper
+          fi
+
+      - name: Audit Cask
+        run: |
+          brew style "$(brew --repo yueseqaz/sakura-wallpaper)/Casks/sakura-wallpaper.rb"
+          brew audit --cask --strict --online yueseqaz/sakura-wallpaper/sakura-wallpaper
+
+      - name: Download and install Cask
+        run: |
+          brew fetch --cask yueseqaz/sakura-wallpaper/sakura-wallpaper
+          brew install --cask yueseqaz/sakura-wallpaper/sakura-wallpaper
+
+      - name: Verify installed application
+        run: |
+          test -d /Applications/SakuraWallpaper.app
+          test -x /Applications/SakuraWallpaper.app/Contents/MacOS/SakuraWallpaper
+          codesign --verify --deep --strict /Applications/SakuraWallpaper.app

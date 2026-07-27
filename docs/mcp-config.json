@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "sakura-wallpaper": {
-      "command": "swift",
-      "args": ["run", "--package-path", "/path/to/SakuraWallpaper", "sakura-mcp"]
-    }
-  }
-}

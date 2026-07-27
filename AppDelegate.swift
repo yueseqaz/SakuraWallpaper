@@ -14,12 +14,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var nextMenuItem: NSMenuItem!
     var nextWallpaperMenu: NSMenu!
     var languageMenu: NSMenu!
-    private var mcpControlServer: MCPGUIControlServer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         wallpaperManager = WallpaperManager()
-        mcpControlServer = MCPGUIControlServer(wallpaperManager: wallpaperManager)
-        mcpControlServer?.start()
         mainWindow = MainWindowController(wallpaperManager: wallpaperManager)
         setupStatusBar()
 
@@ -31,7 +28,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
     func applicationWillTerminate(_ notification: Notification) {
-        mcpControlServer?.stop()
         wallpaperManager.stopAll()
         wallpaperManager.stopAllSecurityScopedAccess()
     }
