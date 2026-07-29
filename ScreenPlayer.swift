@@ -22,6 +22,7 @@ class ScreenPlayer {
     }
 
     var mediaURL: URL { fileURL }
+    var videoPlayer: AVPlayer? { avPlayer }
 
     func updateMedia(url: URL) {
         self.fileURL = url

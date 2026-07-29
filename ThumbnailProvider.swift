@@ -5,12 +5,16 @@ import ImageIO
 final class ThumbnailProvider {
     static let shared = ThumbnailProvider()
 
+    static let cacheCountLimit = 200
+    static let cacheCostLimit = 24 * 1024 * 1024
+
     private let cache = NSCache<NSString, NSImage>()
     private let imageQueue = DispatchQueue(label: "com.sakura.wallpaper.thumbnail.image", qos: .userInitiated, attributes: .concurrent)
     private let videoLimiter = AsyncWorkLimiter(maxConcurrent: 2)
 
     private init() {
-        cache.countLimit = 400
+        cache.countLimit = Self.cacheCountLimit
+        cache.totalCostLimit = Self.cacheCostLimit
     }
 
     func requestThumbnail(for url: URL, size: NSSize, completion: @escaping (NSImage?) -> Void) {
@@ -53,7 +57,7 @@ final class ThumbnailProvider {
 
             let imageSize = NSSize(width: cgImage.width, height: cgImage.height)
             let image = NSImage(cgImage: cgImage, size: imageSize)
-            self.cache.setObject(image, forKey: cacheKey)
+            self.cache.setObject(image, forKey: cacheKey, cost: Self.cacheCost(for: cgImage))
             PerformanceMonitor.shared.end(token, extra: "result=ok path=\(url.lastPathComponent)")
             DispatchQueue.main.async { completion(image) }
         }
@@ -82,7 +86,7 @@ final class ThumbnailProvider {
 
                 let imageSize = NSSize(width: cgImage.width, height: cgImage.height)
                 let image = NSImage(cgImage: cgImage, size: imageSize)
-                self.cache.setObject(image, forKey: cacheKey)
+                self.cache.setObject(image, forKey: cacheKey, cost: Self.cacheCost(for: cgImage))
                 PerformanceMonitor.shared.end(token, extra: "result=ok path=\(url.lastPathComponent)")
                 DispatchQueue.main.async { completion(image) }
             }
@@ -91,5 +95,9 @@ final class ThumbnailProvider {
 
     private func cacheKey(for url: URL, size: NSSize) -> NSString {
         "\(url.path)#\(Int(size.width))x\(Int(size.height))" as NSString
+    }
+
+    private static func cacheCost(for image: CGImage) -> Int {
+        image.bytesPerRow * image.height
     }
 }

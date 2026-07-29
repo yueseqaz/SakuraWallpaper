@@ -330,6 +330,15 @@ public class WallpaperManager {
         return currentFiles[screenID]
     }
 
+    func videoPlayer(for screen: NSScreen, mediaURL: URL) -> AVPlayer? {
+        let id = SettingsManager.screenIdentifier(screen)
+        guard let player = players[id],
+              player.mediaURL.standardizedFileURL == mediaURL.standardizedFileURL else {
+            return nil
+        }
+        return player.videoPlayer
+    }
+
     func selectPlaylistItem(at index: Int, for screen: NSScreen) {
         let id = SettingsManager.screenIdentifier(screen)
         let config = SettingsManager.shared.screenConfig(for: id)

@@ -67,7 +67,7 @@ private final class DragDropContainerView: NSView {
     }
 }
 
-class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCollectionViewDelegate {
+class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCollectionViewDelegate, NSWindowDelegate {
     private enum Theme {
         static let windowBackground = NSColor(name: nil) { appearance in
             appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
@@ -132,6 +132,7 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
     private var previewPlayerLayer: AVPlayerLayer!
     private var previewStageView: NSView!
     private var previewPlayer: AVPlayer?
+    private var previewOwnsPlayer = false
     private var previewEndObserver: Any?
     private var previewContainer: DragDropContainerView!
     private var previewLoadingOverlay: NSView!
@@ -202,10 +203,25 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
         window.contentMinSize = NSSize(width: 540, height: 620)
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
+        window.delegate = self
+        window.setFrameAutosaveName("SakuraWallpaperMainWindow")
         setupUI()
     }
 
     required init?(coder: NSCoder) { nil }
+
+    override func showWindow(_ sender: Any?) {
+        super.showWindow(sender)
+        updateUI()
+    }
+
+    func windowDidMiniaturize(_ notification: Notification) {
+        releasePreviewResources()
+    }
+
+    func windowDidDeminiaturize(_ notification: Notification) {
+        updateUI()
+    }
 
     deinit {
         NotificationCenter.default.removeObserver(self)
@@ -1533,21 +1549,25 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
                     indicator.layer?.backgroundColor = resolvedCGColor(.systemYellow)
                     statusLabel.stringValue = "ui.status".localized("ui.pausedManual".localized)
                     statusLabel.textColor = Theme.textPrimary
-                    previewPlayer?.pause()
+                    if previewOwnsPlayer { previewPlayer?.pause() }
                 } else if isAutoPaused {
                     indicator.layer?.backgroundColor = resolvedCGColor(.systemOrange)
                     statusLabel.stringValue = "ui.status".localized("ui.pausedAuto".localized)
                     statusLabel.textColor = Theme.textPrimary
-                    previewPlayer?.pause()
+                    if previewOwnsPlayer { previewPlayer?.pause() }
                 } else {
                     indicator.layer?.backgroundColor = resolvedCGColor(.systemGreen)
                     statusLabel.stringValue = "ui.status".localized("ui.playing".localized)
                     statusLabel.textColor = Theme.textPrimary
-                    previewPlayer?.play()
+                    if previewOwnsPlayer { previewPlayer?.play() }
                 }
             }
 
-            showPreview(url: url, type: type)
+            if window?.isVisible == true {
+                showPreview(url: url, type: type)
+            } else {
+                releasePreviewResources()
+            }
         } else {
             currentPreviewPath = nil
             currentPreviewFitMode = nil
@@ -1630,22 +1650,30 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
             previewPlayerLayer.isHidden = true
         case .video:
             setPreviewLoading(false)
-            previewPlayer = AVPlayer(url: url)
-            previewPlayer?.isMuted = true
+            if let selectedScreen,
+               let wallpaperPlayer = wallpaperManager.videoPlayer(for: selectedScreen, mediaURL: url) {
+                previewPlayer = wallpaperPlayer
+                previewOwnsPlayer = false
+            } else {
+                previewPlayer = AVPlayer(url: url)
+                previewPlayer?.isMuted = true
+                previewOwnsPlayer = true
+            }
             previewPlayerLayer.player = previewPlayer
             previewPlayerLayer.videoGravity = previewConfig.wallpaperFit.avLayerVideoGravity
             previewPlayerLayer.frame = previewStageView.bounds
             previewPlayerLayer.isHidden = false
             previewImageView.isHidden = true
-            previewPlayer?.play()
-
-            previewEndObserver = NotificationCenter.default.addObserver(
-                forName: .AVPlayerItemDidPlayToEndTime,
-                object: previewPlayer?.currentItem,
-                queue: .main
-            ) { [weak self] _ in
-                self?.previewPlayer?.seek(to: .zero)
-                self?.previewPlayer?.play()
+            if previewOwnsPlayer {
+                previewPlayer?.play()
+                previewEndObserver = NotificationCenter.default.addObserver(
+                    forName: .AVPlayerItemDidPlayToEndTime,
+                    object: previewPlayer?.currentItem,
+                    queue: .main
+                ) { [weak self] _ in
+                    self?.previewPlayer?.seek(to: .zero)
+                    self?.previewPlayer?.play()
+                }
             }
         case .unsupported:
             setPreviewLoading(false)
@@ -1655,18 +1683,29 @@ class MainWindowController: NSWindowController, NSCollectionViewDataSource, NSCo
 
     private func clearPreview() {
         setPreviewLoading(false)
-        previewPlayer?.pause()
+        if previewOwnsPlayer {
+            previewPlayer?.pause()
+        }
         if let observer = previewEndObserver {
             NotificationCenter.default.removeObserver(observer)
         }
         previewEndObserver = nil
         previewPlayer = nil
+        previewOwnsPlayer = false
         previewPlayerLayer.player = nil
         previewImageView.image = nil
         previewImageView.animates = false
         previewStageView.isHidden = false
         scrollView.isHidden = true
         previewBrowserChromeView.isHidden = true
+    }
+
+    private func releasePreviewResources() {
+        currentPreviewPath = nil
+        currentPreviewFitMode = nil
+        currentPreviewIsFolder = nil
+        currentPreviewBrowserVisible = nil
+        clearPreview()
     }
 
     private func applyPreviewLayout(isFolder: Bool, browserVisible: Bool) {

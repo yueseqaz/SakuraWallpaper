@@ -106,6 +106,8 @@
 // About
 "about.title" = "关于樱花壁纸";
 "about.version" = "版本 %@";
+"about.versionAndBuild" = "版本 %@ (%@)";
+"about.systemInfo" = "桌面端 \U2022 macOS %@ \U2022 %@";
 "about.description" = "专注、轻量的 macOS 壁纸伴侣";
 "about.capabilitiesTitle" = "为每一块桌面而设计";
 "about.formatsTitle" = "支持格式";

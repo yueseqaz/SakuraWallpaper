@@ -106,6 +106,8 @@
 // About
 "about.title" = "About SakuraWallpaper";
 "about.version" = "Version %@";
+"about.versionAndBuild" = "Version %@ (%@)";
+"about.systemInfo" = "Desktop \U2022 macOS %@ \U2022 %@";
 "about.description" = "A focused wallpaper companion for macOS";
 "about.capabilitiesTitle" = "Designed for every desktop";
 "about.formatsTitle" = "Supported Formats";

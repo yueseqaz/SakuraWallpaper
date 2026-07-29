@@ -1,9 +1,11 @@
 import Cocoa
+import Darwin
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem!
     var statusMenuItem: NSMenuItem!
-    var mainWindow: MainWindowController!
+    private var mainWindow: MainWindowController?
+    private var mainWindowCloseObserver: NSObjectProtocol?
     var wallpaperManager: WallpaperManager!
     var recentMenu: NSMenu!
     var aboutWindow: AboutWindowController?
@@ -17,12 +19,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         wallpaperManager = WallpaperManager()
-        mainWindow = MainWindowController(wallpaperManager: wallpaperManager)
         setupStatusBar()
 
         SettingsManager.shared.runCleanSlateInitIfNeeded()
         wallpaperManager.restoreAllScreens()
-        mainWindow.runOnboardingIfNeeded()
+        if !SettingsManager.shared.onboardingCompleted {
+            mainWindowController().runOnboardingIfNeeded()
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
@@ -179,7 +182,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         
-        mainWindow.updateUI()
+        mainWindow?.updateUI()
         rebuildRecentMenu()
     }
 
@@ -245,9 +248,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func openMain() {
-        mainWindow.updateUI()
-        mainWindow.showWindow(nil)
-        mainWindow.window?.makeKeyAndOrderFront(nil)
+        let controller = mainWindowController()
+        controller.showWindow(nil)
+        controller.window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 
@@ -257,7 +260,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let id = SettingsManager.screenIdentifier(screen)
             SettingsManager.shared.setScreenConfig(Screen_Config.default, for: id)
         }
-        mainWindow.updateUI()
+        mainWindow?.updateUI()
         rebuildRecentMenu()
     }
 
@@ -268,7 +271,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             wallpaperManager.pause()
         }
         updatePauseItem()
-        mainWindow.updateUI()
+        mainWindow?.updateUI()
     }
 
     @objc func togglePauseForScreen(_ sender: NSMenuItem) {
@@ -278,14 +281,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             wallpaperManager.pauseScreen(screen)
         }
-        mainWindow.updateUI()
+        mainWindow?.updateUI()
     }
 
     @objc func toggleAutoPause() {
         SettingsManager.shared.pauseWhenInvisible = !SettingsManager.shared.pauseWhenInvisible
         wallpaperManager.checkPlaybackState()
         updateAutoPauseItem()
-        mainWindow.updateUI()
+        mainWindow?.updateUI()
     }
 
     private func rebuildPauseMenu() {
@@ -380,6 +383,32 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func nextWallpaperForScreen(_ sender: NSMenuItem) {
         guard let screen = sender.representedObject as? NSScreen else { return }
         wallpaperManager.nextWallpaper(for: screen)
+    }
+
+    private func mainWindowController() -> MainWindowController {
+        if let mainWindow {
+            return mainWindow
+        }
+
+        let controller = MainWindowController(wallpaperManager: wallpaperManager)
+        mainWindowCloseObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: controller.window,
+            queue: .main
+        ) { [weak self, weak controller] _ in
+            DispatchQueue.main.async {
+                guard let self, self.mainWindow === controller else { return }
+                if let observer = self.mainWindowCloseObserver {
+                    NotificationCenter.default.removeObserver(observer)
+                }
+                self.mainWindowCloseObserver = nil
+                self.mainWindow = nil
+                ThumbnailProvider.shared.clearCache()
+                malloc_zone_pressure_relief(nil, 0)
+            }
+        }
+        mainWindow = controller
+        return controller
     }
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
