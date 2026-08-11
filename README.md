@@ -2,7 +2,7 @@
 # SakuraWallpaper
 
 A lightweight video and image wallpaper application for macOS.
-Current version: `v1.0.2`
+Current version: `v1.0.3`
 
 [Chinese Documentation](README_CN.md)
 

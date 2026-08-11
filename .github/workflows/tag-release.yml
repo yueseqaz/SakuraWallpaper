@@ -4,9 +4,19 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version without the v prefix (for example, 1.0.4)"
+        required: true
+        type: string
 
 permissions:
   contents: write
+
+concurrency:
+  group: release-publishing
+  cancel-in-progress: false
 
 jobs:
   build-and-publish-release:
@@ -17,6 +27,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'main' || github.ref }}
 
       - name: Set up Homebrew dependencies
         run: |
@@ -34,7 +45,23 @@ jobs:
       - name: Derive app version
         id: version
         shell: bash
-        run: echo "app_version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            app_version="${REQUESTED_VERSION#v}"
+          else
+            app_version="${GITHUB_REF_NAME#v}"
+          fi
+
+          if [[ ! "$app_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([._-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid release version: $app_version" >&2
+            exit 1
+          fi
+
+          echo "app_version=$app_version" >> "$GITHUB_OUTPUT"
+          echo "release_tag=v$app_version" >> "$GITHUB_OUTPUT"
+          echo "build_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Build DMG
         env:
@@ -44,44 +71,69 @@ jobs:
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SakuraWallpaper-${{ github.ref_name }}-dmg
+          name: SakuraWallpaper-v${{ steps.version.outputs.app_version }}-dmg
           path: SakuraWallpaper.dmg
           if-no-files-found: error
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
+          tag_name: ${{ steps.version.outputs.release_tag }}
+          name: ${{ steps.version.outputs.release_tag }}
+          target_commitish: ${{ steps.version.outputs.build_sha }}
           files: SakuraWallpaper.dmg
           generate_release_notes: true
 
-      - name: Update Homebrew Cask
+      - name: Verify published DMG
+        env:
+          RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
+        shell: bash
+        run: |
+          expected_sha256="$(shasum -a 256 SakuraWallpaper.dmg | awk '{print $1}')"
+          curl --fail --location --retry 5 --retry-all-errors \
+            --output published.dmg \
+            "https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/SakuraWallpaper.dmg"
+          published_sha256="$(shasum -a 256 published.dmg | awk '{print $1}')"
+          test "$published_sha256" = "$expected_sha256"
+
+      - name: Update project version and Homebrew Cask
         env:
           APP_VERSION: ${{ steps.version.outputs.app_version }}
+          SYNC_PROJECT_VERSION: ${{ github.event_name == 'workflow_dispatch' }}
         shell: bash
         run: |
           cask_sha256="$(shasum -a 256 SakuraWallpaper.dmg | awk '{print $1}')"
-
-          git fetch origin main
-          git switch --force-create cask-update origin/main
-
-          ruby - "$APP_VERSION" "$cask_sha256" <<'RUBY'
-          version, sha256 = ARGV
-          path = "Casks/sakura-wallpaper.rb"
-          content = File.read(path)
-          content = content.sub(/  version "[^"]+"/, "  version \"#{version}\"")
-          content = content.sub(/  sha256 "[0-9a-f]+"/, "  sha256 \"#{sha256}\"")
-          File.write(path, content)
-          RUBY
-
-          if git diff --quiet -- Casks/sakura-wallpaper.rb; then
-            echo "Homebrew Cask already matches v${APP_VERSION}."
-            exit 0
-          fi
-
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Casks/sakura-wallpaper.rb
-          git commit -m "chore: update Homebrew Cask to v${APP_VERSION} [skip ci]"
-          git push origin HEAD:main
+
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git switch --force-create release-metadata origin/main
+
+            args=("$APP_VERSION" "$cask_sha256")
+            if [[ "$SYNC_PROJECT_VERSION" == "true" ]]; then
+              args+=(--sync-project-version)
+            fi
+            ruby scripts/update-release-metadata.rb "${args[@]}"
+
+            if git diff --quiet; then
+              echo "Release metadata already matches v${APP_VERSION}."
+              exit 0
+            fi
+
+            git add Casks/sakura-wallpaper.rb
+            if [[ "$SYNC_PROJECT_VERSION" == "true" ]]; then
+              git add build.sh README.md README_CN.md
+            fi
+            git commit -m "chore: update release metadata to v${APP_VERSION} [skip ci]"
+
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+
+            echo "main changed while publishing; retrying ($attempt/3)..." >&2
+            sleep "$((attempt * 2))"
+          done
+
+          echo "Could not push release metadata after 3 attempts." >&2
+          exit 1

@@ -2,7 +2,7 @@
 # SakuraWallpaper
 
 macOS 轻量级视频和图片壁纸应用。
-当前版本：`v1.0.2`
+当前版本：`v1.0.3`
 
 [English Documentation](README.md)
 
