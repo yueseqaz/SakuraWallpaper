@@ -1,3 +1,5 @@
+
+
 # macOS video wallpaper app built with Swift
 # SakuraWallpaper
 
@@ -35,7 +37,7 @@ Sakura first.
 
 ![Main Window](img/Sakurawallpaper1.jpeg)
 
-![Status Bar Menu](img/Sakurawallpaper2.jpeg)
+![Status Bar Menu](img/SakuraWallpaper2.jpeg)
 
 ![SakuraWallpaper Demo](img/video.gif)
 
@@ -58,7 +60,7 @@ Download the latest `SakuraWallpaper.dmg` from [Releases](https://github.com/yue
 OR
 ```
 brew tap yueseqaz/sakura-wallpaper https://github.com/yueseqaz/SakuraWallpaper.git
-brew install --cask yueseqaz/sakura-wallpaper/sakura-wallpaper
+brew install --cask sakura-wallpaper
 ```
 
 ### Build from Source
